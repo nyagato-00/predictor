@@ -51,7 +51,7 @@ class Recommendify::InputMatrix
 
   # calculate all similarities to other items in the matrix for item1
   def similarities_for(item1, with_scores: false, offset: 0, limit: -1)
-    Recommendify.redis.zrevrange(redis_key(:similarities, item1), offset, limit, with_scores: with_scores)
+    Recommendify.redis.zrevrange(redis_key(:similarities, item1), offset, limit == -1 ? limit : offset + (limit - 1), with_scores: with_scores)
   end
 
   def process_item!(item)

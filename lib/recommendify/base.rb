@@ -81,7 +81,7 @@ module Recommendify::Base
       redis.multi do |multi|
         multi.zunionstore 'temp', item_keys #, weights: item_weights
         multi.zrem 'temp', item_set
-        predictions = multi.zrevrange 'temp', offset, limit, with_scores: with_scores
+        predictions = multi.zrevrange 'temp', offset, limit == -1 ? limit : offset + (limit - 1), with_scores: with_scores
         multi.del 'temp'
       end
       return predictions.value
@@ -96,7 +96,7 @@ module Recommendify::Base
     unless keys.empty?
       Recommendify.redis.multi do |multi|
         multi.zunionstore 'temp', keys
-        neighbors = multi.zrevrange('temp', offset, limit, with_scores: with_scores)
+        neighbors = multi.zrevrange('temp', offset, limit == -1 ? limit : offset + (limit - 1), with_scores: with_scores)
         multi.del 'temp'
       end
       return neighbors.value
