@@ -49,12 +49,13 @@ module Recommendify::Base
     Recommendify.redis.sunion input_matrices.map{|k,m| m.redis_key(:all_items)}
   end
 
-  def process_predictions(set_id, matrix_label)
-    key = redis_key(:predictions, set_id)
-    matrix = input_matrices[matrix_label]
+  def predictions_for(set_id, item_set: nil, matrix_label: nil, with_scores: false, offset: 0, limit: -1)
+    fail "item_set or matrix_label is required" unless item_set || matrix_label
     redis = Recommendify.redis
-
-    item_set = redis.smembers(matrix.redis_key(:items, set_id))
+    if matrix_label
+      matrix = input_matrices[matrix_label]
+      item_set = redis.smembers(matrix.redis_key(:items, set_id))
+    end
 
     item_keys = item_set.map do |item|
       input_matrices.map{ |k,m| m.redis_key(:similarities, item) }
@@ -63,39 +64,36 @@ module Recommendify::Base
     item_weights = item_keys.map do |item_key|
       scores = redis.zrange item_key, 0, -1, with_scores: true
       unless scores.empty?
-        1.0/scores.map{|x,y| y}.reduce(:+)
+        scores.map{|x,y| y}.reduce(:+)  # Jamie: Colin, why were we dividing by 1 here? It seemed to mess with the results in the wrong way
       else
         0
       end
     end
 
     unless item_keys.empty?
+      predictions = nil
+      key = redis_key(:predictions, set_id)
       redis.multi do |multi|
         multi.del key
         multi.zunionstore key, item_keys, weights: item_weights
         multi.zrem key, item_set
+        predictions = Recommendify.redis.zrevrange key, offset, limit, with_scores: with_scores
+        multi.del key
       end
-      return predictions_for(set_id)
+      return predictions.value
     else
       return []
     end
   end
 
-  def predictions_for(set_id, with_scores = false)
-    Recommendify.redis.zrevrange redis_key(:predictions, set_id), 0, -1, with_scores: with_scores
-  end
-
-  def ids_for(item, with_scores = false)
-    similarities_for(item, with_scores)
-  end
-
-  def similarities_for(item, with_scores = false)
+  def similarities_for(item, with_scores: false, offset: 0, limit: -1)
     keys = input_matrices.map{ |k,m| m.redis_key(:similarities, item) }
     neighbors = nil
     unless keys.empty?
       Recommendify.redis.multi do |multi|
         multi.zunionstore 'temp', keys
-        neighbors = multi.zrevrange('temp', 0, -1, with_scores: with_scores)
+        neighbors = multi.zrevrange('temp', offset, limit, with_scores: with_scores)
+        multi.del 'temp'
       end
       return neighbors.value
     else

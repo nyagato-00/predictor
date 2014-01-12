@@ -101,12 +101,28 @@ describe Recommendify::Base do
     end
   end
 
-  describe "process_predictions" do
-    it "should do something"
-  end
-
   describe "predictions_for" do
-    it "should do something"
+    it "returns relevant predictions" do
+      BaseRecommender.input_matrix(:users)
+      BaseRecommender.input_matrix(:tags)
+      sm = BaseRecommender.new
+      sm.users.add_set('me', ["foo", "bar", "fnord"])
+      sm.users.add_set('not_me', ["foo", "shmoo"])
+      sm.users.add_set('another', ["fnord", "other"])
+      sm.users.add_set('another', ["nada"])
+      sm.tags.add_set('tag1', ["foo", "fnord", "shmoo"])
+      sm.tags.add_set('tag2', ["bar", "shmoo"])
+      sm.tags.add_set('tag3', ["shmoo", "nada"])
+      sm.process!
+      predictions = sm.predictions_for('me', matrix_label: :users)
+      predictions.should == ["shmoo", "other", "nada"]
+      predictions = sm.predictions_for('me', item_set: ["foo", "bar", "fnord"])
+      predictions.should == ["shmoo", "other", "nada"]
+      predictions = sm.predictions_for('me', matrix_label: :users, offset: 1, limit: 1)
+      predictions.should == ["other"]
+      predictions = sm.predictions_for('me', matrix_label: :users, offset: 1)
+      predictions.should == ["other", "nada"]
+    end
   end
 
   describe "similarities_for(item_id)" do
