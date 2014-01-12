@@ -61,24 +61,28 @@ module Recommendify::Base
       input_matrices.map{ |k,m| m.redis_key(:similarities, item) }
     end.flatten
 
-    item_weights = item_keys.map do |item_key|
-      scores = redis.zrange item_key, 0, -1, with_scores: true
-      unless scores.empty?
-        scores.map{|x,y| y}.reduce(:+)  # Jamie: Colin, why were we dividing by 1 here? It seemed to mess with the results in the wrong way
-      else
-        0
-      end
-    end
+    # Jamie: Do we even need weights?
+
+    # item_weights = item_keys.map do |item_key|
+    #   scores = redis.zrange item_key, 0, -1, with_scores: true
+    #   unless scores.empty?
+    #     scores.map{|x,y| y}.reduce(:+)  # Jamie: Colin, why were we dividing by 1 here? It seemed to mess with the results in the wrong way
+    #   else
+    #     0
+    #   end
+    # end
+
+    # item_weights = item_set.map do |item| 
+    #   input_matrices.map{|k, m| m.weight } 
+    # end.flatten
 
     unless item_keys.empty?
       predictions = nil
-      key = redis_key(:predictions, set_id)
       redis.multi do |multi|
-        multi.del key
-        multi.zunionstore key, item_keys, weights: item_weights
-        multi.zrem key, item_set
-        predictions = Recommendify.redis.zrevrange key, offset, limit, with_scores: with_scores
-        multi.del key
+        multi.zunionstore 'temp', item_keys #, weights: item_weights
+        multi.zrem 'temp', item_set
+        predictions = multi.zrevrange 'temp', offset, limit, with_scores: with_scores
+        multi.del 'temp'
       end
       return predictions.value
     else
