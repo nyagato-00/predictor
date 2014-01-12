@@ -35,7 +35,6 @@ describe Recommendify::Base do
       sm = BaseRecommender.new
       sm.myinput.should be_a(Recommendify::InputMatrix)
     end
-
   end
 
   describe "process_item!" do
