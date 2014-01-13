@@ -120,7 +120,7 @@ class Recommendify::InputMatrix
     end
 
     if y.value > 0
-      return (x.value.to_f/y.value.to_f)*self.weight
+      return (x.value.to_f/y.value.to_f)
     else
       return 0.0
     end

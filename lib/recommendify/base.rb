@@ -61,16 +61,14 @@ module Recommendify::Base
       input_matrices.map{ |k,m| m.redis_key(:similarities, item) }
     end.flatten
 
-    # Jamie: Do we even need weights?
-
-    item_weights = item_keys.map do |item_key|
-      scores = redis.zrange item_key, 0, -1, with_scores: true
-      unless scores.empty?
-        1.0/scores.map{|x,y| y}.reduce(:+)  # Jamie: Colin, why were we dividing by 1 here? It seemed to mess with the results in the wrong way
-      else
-        0
-      end
-    end
+    # item_weights = item_keys.map do |item_key|
+    #   scores = redis.zrange item_key, 0, -1, with_scores: true
+    #   unless scores.empty?
+    #     1.0/scores.map{|x,y| y}.reduce(:+)
+    #   else
+    #     0
+    #   end
+    # end
 
     item_weights = item_set.map do |item|
       input_matrices.map{|k, m| m.weight }
@@ -92,6 +90,7 @@ module Recommendify::Base
 
   def similarities_for(item, with_scores: false, offset: 0, limit: -1)
     keys = input_matrices.map{ |k,m| m.redis_key(:similarities, item) }
+    weights = input_matrices.map{ |k,m| m.weight }
     neighbors = nil
     unless keys.empty?
       Recommendify.redis.multi do |multi|
