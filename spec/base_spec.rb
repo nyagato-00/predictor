@@ -133,7 +133,26 @@ describe Recommendify::Base do
       sm.similarities_for("not_existing_item").length.should == 0
     end
 
-    it "correctly sums input matrices"
+    it "correctly sums input matrices" do
+      BaseRecommender.input_matrix(:users, weight: 1.0)
+      BaseRecommender.input_matrix(:tags, weight: 2.0)
+      BaseRecommender.input_matrix(:topics, weight: 4.0)
+
+      sm = BaseRecommender.new
+
+      sm.users.add_set('user1', ["c1", "c2", "c4"])
+      sm.users.add_set('user2', ["c3", "c4"])
+      sm.topics.add_set('topic1', ["c1", "c4"])
+      sm.topics.add_set('topic2', ["c2", "c3"])
+      sm.tags.add_set('tag1', ["c1", "c2", "c4"])
+      sm.tags.add_set('tag2', ["c1", "c4"])
+
+      sm.process!
+      sm.similarities_for("c1", with_scores: true).should eq([["c4", 6.5], ["c2", 2.0]])
+      sm.similarities_for("c2", with_scores: true).should eq([["c3", 4.0], ["c1", 2.0], ["c4", 1.5]])
+      sm.similarities_for("c3", with_scores: true).should eq([["c2", 4.0], ["c4", 0.5]])
+      sm.similarities_for("c4", with_scores: true).should eq([["c1", 6.5], ["c2", 1.5], ["c3", 0.5]])
+    end
   end
 
   describe "sets_for" do
