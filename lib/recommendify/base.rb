@@ -16,22 +16,13 @@ module Recommendify::Base
     def input_matrices
       @matrices
     end
-
-    def max_neighbors(n=nil)
-      return @max_neighbors unless n
-      @max_neighbors = n
-    end
   end
 
   def input_matrices
     @input_matrices ||= Hash[self.class.input_matrices.map{ |key, opts|
       opts.merge!(:key => key, :redis_prefix => redis_prefix)
-      [ key, Recommendify::InputMatrix.create(opts) ]
+      [ key, Recommendify::InputMatrix.new(opts) ]
     }]
-  end
-
-  def max_neighbors
-    self.class.max_neighbors || Recommendify::DEFAULT_MAX_NEIGHBORS
   end
 
   def redis_prefix
@@ -58,55 +49,63 @@ module Recommendify::Base
     Recommendify.redis.sunion input_matrices.map{|k,m| m.redis_key(:all_items)}
   end
 
-  def process_predictions(set_id, matrix_label)
-    key = redis_key(:predictions, set_id)
-    matrix = input_matrices[matrix_label]
+  def predictions_for(set_id=nil, item_set: nil, matrix_label: nil, with_scores: false, offset: 0, limit: -1)
+    fail "item_set or matrix_label is required" unless item_set || matrix_label
     redis = Recommendify.redis
-
-    item_set = redis.smembers(matrix.redis_key(:sets, set_id))
+    if matrix_label
+      matrix = input_matrices[matrix_label]
+      item_set = redis.smembers(matrix.redis_key(:items, set_id))
+    end
 
     item_keys = item_set.map do |item|
       input_matrices.map{ |k,m| m.redis_key(:similarities, item) }
     end.flatten
 
-    item_weights = item_keys.map do |item_key|
-      scores = redis.zrange item_key, 0, -1, :with_scores => true
-      unless scores.empty?
-        1.0/scores.map{|x,y| y}.reduce(:+)
-      else
-        0
+    # item_weights = item_keys.map do |item_key|
+    #   scores = redis.zrange item_key, 0, -1, with_scores: true
+    #   unless scores.empty?
+    #     1.0/scores.map{|x,y| y}.reduce(:+)
+    #   else
+    #     0
+    #   end
+    # end
+
+    item_weights = item_set.map do |item|
+      input_matrices.map{|k, m| m.weight }
+    end.flatten
+
+    unless item_keys.empty?
+      predictions = nil
+      redis.multi do |multi|
+        multi.zunionstore 'temp', item_keys, weights: item_weights
+        multi.zrem 'temp', item_set
+        predictions = multi.zrevrange 'temp', offset, limit == -1 ? limit : offset + (limit - 1), with_scores: with_scores
+        multi.del 'temp'
       end
+      return predictions.value
+    else
+      return []
     end
-
-    redis.multi do |multi|
-      multi.del key
-      multi.zunionstore key, item_keys, :weights => item_weights
-      multi.zrem key, item_set
-    end
-
-    return predictions_for(set_id)
   end
 
-  def predictions_for(set_id, with_scores = false)
-    Recommendify.redis.zrevrange redis_key(:predictions, set_id), 0, -1, :with_scores => with_scores
-  end
-
-  def ids_for(item, with_scores = false)
-    similarities_for(item, with_scores)
-  end
-
-  def similarities_for(item, with_scores = false)
+  def similarities_for(item, with_scores: false, offset: 0, limit: -1)
     keys = input_matrices.map{ |k,m| m.redis_key(:similarities, item) }
+    weights = input_matrices.map{ |k,m| m.weight }
     neighbors = nil
-    Recommendify.redis.multi do |multi|
-      multi.zunionstore 'temp', keys
-      neighbors = multi.zrevrange('temp', 0, -1, :with_scores => with_scores)
+    unless keys.empty?
+      Recommendify.redis.multi do |multi|
+        multi.zunionstore 'temp', keys, weights: weights
+        neighbors = multi.zrevrange('temp', offset, limit == -1 ? limit : offset + (limit - 1), with_scores: with_scores)
+        multi.del 'temp'
+      end
+      return neighbors.value
+    else
+      return []
     end
-    return neighbors.value
   end
 
   def sets_for(item)
-    keys = input_matrices.map{ |k,m| m.redis_key(:items, item) }
+    keys = input_matrices.map{ |k,m| m.redis_key(:sets, item) }
     Recommendify.redis.sunion keys
   end
 
@@ -126,7 +125,7 @@ module Recommendify::Base
 
   def delete_item!(item_id)
     input_matrices.each do |k,m|
-      m.delete_item(item_id)
+      m.delete_item!(item_id)
     end
     return self
   end
