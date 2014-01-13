@@ -116,7 +116,7 @@ describe Recommendify::Base do
       sm.process!
       predictions = sm.predictions_for('me', matrix_label: :users)
       predictions.should == ["shmoo", "other", "nada"]
-      predictions = sm.predictions_for('me', item_set: ["foo", "bar", "fnord"])
+      predictions = sm.predictions_for(item_set: ["foo", "bar", "fnord"])
       predictions.should == ["shmoo", "other", "nada"]
       predictions = sm.predictions_for('me', matrix_label: :users, offset: 1, limit: 1)
       predictions.should == ["other"]
@@ -124,7 +124,36 @@ describe Recommendify::Base do
       predictions.should == ["other", "nada"]
     end
 
-    it "correctly normalizes predictions"
+    it "correctly normalizes predictions" do
+      BaseRecommender.input_matrix(:users, weight: 1.0)
+      BaseRecommender.input_matrix(:tags, weight: 2.0)
+      BaseRecommender.input_matrix(:topics, weight: 4.0)
+
+      sm = BaseRecommender.new
+
+      sm.users.add_set('user1', ["c1", "c2", "c4"])
+      sm.users.add_set('user2', ["c3", "c4"])
+      sm.topics.add_set('topic1', ["c1", "c4"])
+      sm.topics.add_set('topic2', ["c2", "c3"])
+      sm.tags.add_set('tag1', ["c1", "c2", "c4"])
+      sm.tags.add_set('tag2', ["c1", "c4"])
+
+      sm.process!
+
+      predictions = sm.predictions_for('user1', matrix_label: :users, with_scores: true, normalize: false)
+      predictions.should eq([["c3", 4.5]])
+      predictions = sm.predictions_for('user2',  matrix_label: :users, with_scores: true, normalize: false)
+      predictions.should eq([["c1", 6.5], ["c2", 5.5]])
+      predictions = sm.predictions_for('user1', matrix_label: :users, with_scores: true, normalize: true)
+      predictions[0][0].should eq("c3")
+      predictions[0][1].should be_within(0.001).of(0.592)
+      predictions = sm.predictions_for('user2', matrix_label: :users, with_scores: true, normalize: true)
+      predictions[0][0].should eq("c2")
+      predictions[0][1].should be_within(0.001).of(1.065)
+      predictions[1][0].should eq("c1")
+      predictions[1][1].should be_within(0.001).of(0.764)
+      # binding.pry
+    end
   end
 
   describe "similarities_for(item_id)" do
@@ -133,7 +162,7 @@ describe Recommendify::Base do
       sm.similarities_for("not_existing_item").length.should == 0
     end
 
-    it "correctly sums input matrices" do
+    it "correctly weighs and sums input matrices" do
       BaseRecommender.input_matrix(:users, weight: 1.0)
       BaseRecommender.input_matrix(:tags, weight: 2.0)
       BaseRecommender.input_matrix(:topics, weight: 4.0)
