@@ -49,7 +49,7 @@ module Recommendify::Base
     Recommendify.redis.sunion input_matrices.map{|k,m| m.redis_key(:all_items)}
   end
 
-  def predictions_for(set_id, item_set: nil, matrix_label: nil, with_scores: false, offset: 0, limit: -1)
+  def predictions_for(set_id=nil, item_set: nil, matrix_label: nil, with_scores: false, offset: 0, limit: -1)
     fail "item_set or matrix_label is required" unless item_set || matrix_label
     redis = Recommendify.redis
     if matrix_label
