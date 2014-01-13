@@ -103,8 +103,8 @@ describe Recommendify::Base do
 
   describe "predictions_for" do
     it "returns relevant predictions" do
-      BaseRecommender.input_matrix(:users)
-      BaseRecommender.input_matrix(:tags)
+      BaseRecommender.input_matrix(:users, weight: 4.0)
+      BaseRecommender.input_matrix(:tags, weight: 1.0)
       sm = BaseRecommender.new
       sm.users.add_set('me', ["foo", "bar", "fnord"])
       sm.users.add_set('not_me', ["foo", "shmoo"])
@@ -123,6 +123,8 @@ describe Recommendify::Base do
       predictions = sm.predictions_for('me', matrix_label: :users, offset: 1)
       predictions.should == ["other", "nada"]
     end
+
+    it "correctly normalizes predictions"
   end
 
   describe "similarities_for(item_id)" do
@@ -130,6 +132,8 @@ describe Recommendify::Base do
       sm = BaseRecommender.new
       sm.similarities_for("not_existing_item").length.should == 0
     end
+
+    it "correctly sums input matrices"
   end
 
   describe "sets_for" do
