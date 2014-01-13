@@ -66,7 +66,7 @@ module Recommendify::Base
     # item_weights = item_keys.map do |item_key|
     #   scores = redis.zrange item_key, 0, -1, with_scores: true
     #   unless scores.empty?
-    #     scores.map{|x,y| y}.reduce(:+)  # Jamie: Colin, why were we dividing by 1 here? It seemed to mess with the results in the wrong way
+    #     1.0/scores.map{|x,y| y}.reduce(:+)  # Jamie: Colin, why were we dividing by 1 here? It seemed to mess with the results in the wrong way
     #   else
     #     0
     #   end

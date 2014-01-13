@@ -114,12 +114,13 @@ class Recommendify::InputMatrix
     x = nil
     y = nil
     Recommendify.redis.multi do |multi|
-      x = multi.sinter [redis_key(:sets, item1), redis_key(:sets, item2)]
-      y = multi.sunion [redis_key(:sets, item1), redis_key(:sets, item2)]
+      x = multi.sinterstore 'temp', [redis_key(:sets, item1), redis_key(:sets, item2)]
+      y = multi.sunionstore 'temp', [redis_key(:sets, item1), redis_key(:sets, item2)]
+      multi.del 'temp'
     end
 
-    if y.value.length > 0
-      return (x.value.length.to_f/y.value.length.to_f)*self.weight
+    if y.value > 0
+      return (x.value.to_f/y.value.to_f)*self.weight
     else
       return 0.0
     end
