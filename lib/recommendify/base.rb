@@ -94,7 +94,7 @@ module Recommendify::Base
     neighbors = nil
     unless keys.empty?
       Recommendify.redis.multi do |multi|
-        multi.zunionstore 'temp', keys
+        multi.zunionstore 'temp', keys, weights: weights
         neighbors = multi.zrevrange('temp', offset, limit == -1 ? limit : offset + (limit - 1), with_scores: with_scores)
         multi.del 'temp'
       end
