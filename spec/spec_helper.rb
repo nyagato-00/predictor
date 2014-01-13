@@ -4,8 +4,6 @@ require "pry"
 
 require ::File.expand_path('../../lib/recommendify', __FILE__)
 
-require ::File.expand_path('../input_matrix_shared.rb', __FILE__)
-
 def flush_redis!
   Recommendify.redis = Redis.new
   Recommendify.redis.keys("recommendify-test*").each do |k|

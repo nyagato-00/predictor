@@ -10,7 +10,25 @@ describe Recommendify::InputMatrix do
     flush_redis!
   end
 
-  it_should_behave_like Recommendify::InputMatrix
+  it "should build the correct keys" do
+    @matrix.redis_key.should == "recommendify-test:mymatrix"
+  end
+
+  it "should respond to add_set" do
+    @matrix.respond_to?(:add_set).should == true
+  end
+
+  it "should respond to add_single" do
+    @matrix.respond_to?(:add_single).should == true
+  end
+
+  it "should respond to similarities_for" do
+    @matrix.respond_to?(:similarities_for).should == true
+  end
+
+  it "should respond to all_items" do
+    @matrix.respond_to?(:all_items).should == true
+  end
 
   describe "weight" do
     it "returns the weight configured or a default of 1" do
