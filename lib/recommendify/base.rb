@@ -49,9 +49,23 @@ module Recommendify::Base
     Recommendify.redis.sunion input_matrices.map{|k,m| m.redis_key(:all_items)}
   end
 
-  def predictions_for(set_id=nil, item_set: nil, matrix_label: nil, with_scores: false, offset: 0, limit: -1)
-    fail "item_set or matrix_label is required" unless item_set || matrix_label
+  def item_score(item, normalize)
+    if normalize
+      similarities = similarities_for(item, with_scores: true)
+      unless similarities.empty?
+        similarities.map{|x,y| y}.reduce(:+)
+      else
+        1
+      end
+    else
+      1
+    end
+  end
+
+  def predictions_for(set_id=nil, item_set: nil, matrix_label: nil, with_scores: false, normalize: true, offset: 0, limit: -1)
+    fail "item_set or matrix_label and set_id is required" unless item_set || (matrix_label && set_id)
     redis = Recommendify.redis
+
     if matrix_label
       matrix = input_matrices[matrix_label]
       item_set = redis.smembers(matrix.redis_key(:items, set_id))
@@ -61,17 +75,9 @@ module Recommendify::Base
       input_matrices.map{ |k,m| m.redis_key(:similarities, item) }
     end.flatten
 
-    # item_weights = item_keys.map do |item_key|
-    #   scores = redis.zrange item_key, 0, -1, with_scores: true
-    #   unless scores.empty?
-    #     1.0/scores.map{|x,y| y}.reduce(:+)
-    #   else
-    #     0
-    #   end
-    # end
-
     item_weights = item_set.map do |item|
-      input_matrices.map{|k, m| m.weight }
+      score = item_score(item, normalize)
+      input_matrices.map{|k, m| m.weight/score }
     end.flatten
 
     unless item_keys.empty?
