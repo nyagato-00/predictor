@@ -34,15 +34,24 @@ Predictor.redis = Redis.new(:url => ENV["PREDICTOR_REDIS"], :driver => :hiredis)
 Usage
 ---------------------
 Create a class and include the Predictor::Base module. Define an input_matrix for each relationship you'd like to keep track. Below, we're building a recommender to recommend courses based off of:
-* Users that have taken a course (the :user matrix). This will leads to sets like: _"user1" took "course1", "course3"_, _"user2" took "course1", "course4"_, etc
+* Users that have taken a course (the :user matrix). If 2 courses were taken by the same user, this is 3 times as important to us than if the courses share the same topic. This will lead to sets like:
+  * "user1" -> "course1", "course3",
+  * "user2" -> "course1", "course4"
+* Tags and their courses. This will lead to sets like:
+  * "rails" -> "course1", "course2",
+  * "microeconomics" -> "course3", "course4"
+* Topics and their courses. This will lead to sets like:
+  * "computer science" -> "course1", "course2",
+  * "economics and finance" -> "course3", "course4"
+
 ```ruby
-class CourseRecommender
+  class CourseRecommender
     include Predictor::Base
 
     input_matrix :users, :weight => 3.0
     input_matrix :tags, :weight => 2.0
     input_matrix :topics, :weight => 1.0
-end
+  end
 ```
 
 The MIT License (MIT)
