@@ -4,6 +4,8 @@ Predictor
 
 Fast and efficient recommendations and predictions using Redis.
 
+https://www.codeship.io/projects/5aeeedf0-6053-0131-2319-5ede98f174ff/status
+
 Originally forked and based on [Recommendify](https://github.com/paulasmuth/recommendify) by Paul Asmuth, so a huge thanks to him for his contributions to Recommendify. Predictor has been almost completely rewritten to
 * Be more performant and efficient by using Redis for most logic
 * Provide predictions as well as item similarities (supports both cases of "Users that liked this book also liked ..." and "You liked these x books, so you might also like...")
