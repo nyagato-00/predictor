@@ -152,7 +152,6 @@ describe Predictor::Base do
       predictions[0][1].should be_within(0.001).of(1.065)
       predictions[1][0].should eq("c1")
       predictions[1][1].should be_within(0.001).of(0.764)
-      # binding.pry
     end
   end
 
@@ -206,6 +205,20 @@ describe Predictor::Base do
       sm.myfirstinput.should_receive(:delete_item!).with("fnorditem")
       sm.mysecondinput.should_receive(:delete_item!).with("fnorditem")
       sm.delete_item!("fnorditem")
+    end
+  end
+
+  describe "clean!" do
+    it "should clean out the Redis storage for this Predictor" do
+      BaseRecommender.input_matrix(:set1)
+      BaseRecommender.input_matrix(:set2)
+      sm = BaseRecommender.new
+      sm.set1.add_set "item1", ["foo", "bar"]
+      sm.set1.add_set "item2", ["nada", "bar"]
+      sm.set2.add_set "item3", ["bar", "other"]
+      Predictor.redis.keys("#{sm.redis_prefix}:*").should_not be_empty
+      sm.clean!
+      Predictor.redis.keys("#{sm.redis_prefix}:*").should be_empty
     end
   end
 end

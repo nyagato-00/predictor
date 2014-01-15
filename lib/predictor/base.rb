@@ -136,4 +136,12 @@ module Predictor::Base
     end
     return self
   end
+
+  def clean!
+    # now only flushes the keys for the instantiated recommender
+    keys = Predictor.redis.keys("#{self.redis_prefix}:*")
+    unless keys.empty?
+      Predictor.redis.del(keys)
+    end
+  end
 end

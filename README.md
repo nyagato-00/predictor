@@ -10,6 +10,41 @@ Originally forked and based on [Recommendify](https://github.com/paulasmuth/reco
 * Be more performant and efficient by using Redis for most logic
 * Provide predictions as well as item similarities (supports both cases of "Users that liked this book also liked ..." and "You liked these x books, so you might also like...")
 
+At the moment, Predictor uses the [Jaccard index](http://en.wikipedia.org/wiki/Jaccard_index) to determine similarities between items.
+
+Installation
+---------------------
+```ruby
+gem install predictor
+````
+or in your Gemfile:
+````
+gem 'predictor'
+```
+Getting Started
+---------------------
+First step is to configure Predictor with your Redis instance.
+```ruby
+# in config/initializers/predictor.rb
+Predictor.redis = Redis.new(:url => ENV["PREDICTOR_REDIS"])
+
+# Or, to improve performance, add hiredis as your driver (you'll need to install the hiredis gem first
+Predictor.redis = Redis.new(:url => ENV["PREDICTOR_REDIS"], :driver => :hiredis)
+```
+Usage
+---------------------
+Create a class and include the Predictor::Base module. Define an input_matrix for each relationship you'd like to keep track. Below, we're building a recommender to recommend courses based off of:
+* Users that have taken a course (the :user matrix). This will leads to sets like: _"user1" took "course1", "course3"_, _"user2" took "course1", "course4"_, etc
+```ruby
+class CourseRecommender
+    include Predictor::Base
+
+    input_matrix :users, :weight => 3.0
+    input_matrix :tags, :weight => 2.0
+    input_matrix :topics, :weight => 1.0
+end
+```
+
 The MIT License (MIT)
 ---------------------
 
