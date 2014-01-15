@@ -1,4 +1,4 @@
-module Recommendify
+module Predictor
   @@redis = nil
 
   def self.redis=(redis)
@@ -7,7 +7,7 @@ module Recommendify
 
   def self.redis
     return @@redis unless @@redis.nil?
-    raise "redis not configured! - Recommendify.redis = Redis.new"
+    raise "redis not configured! - Predictor.redis = Redis.new"
   end
 
   def self.capitalize(str_or_sym)
@@ -16,6 +16,6 @@ module Recommendify
   end
 
   def self.constantize(klass)
-    Object.module_eval("Recommendify::#{klass}", __FILE__, __LINE__)
+    Object.module_eval("Predictor::#{klass}", __FILE__, __LINE__)
   end
 end

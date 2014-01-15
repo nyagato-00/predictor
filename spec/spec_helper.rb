@@ -2,32 +2,32 @@ require "rspec"
 require "redis"
 require "pry"
 
-require ::File.expand_path('../../lib/recommendify', __FILE__)
+require ::File.expand_path('../../lib/predictor', __FILE__)
 
 def flush_redis!
-  Recommendify.redis = Redis.new
-  Recommendify.redis.keys("recommendify-test*").each do |k|
-    Recommendify.redis.del(k)
+  Predictor.redis = Redis.new
+  Predictor.redis.keys("predictor-test*").each do |k|
+    Predictor.redis.del(k)
   end
 end
 
-module Recommendify::Base
+module Predictor::Base
 
   def redis_prefix
-    "recommendify-test"
+    "predictor-test"
   end
 
 end
 
 
 class TestRecommender
-  include Recommendify::Base
+  include Predictor::Base
 
   input_matrix :jaccard_one
 
 end
 
-class Recommendify::TestInputMatrix
+class Predictor::TestInputMatrix
 
   def initialize(opts)
   	@opts = opts

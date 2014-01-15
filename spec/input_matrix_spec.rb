@@ -1,9 +1,9 @@
 require ::File.expand_path('../spec_helper', __FILE__)
 
-describe Recommendify::InputMatrix do
+describe Predictor::InputMatrix do
 
   before(:all) do
-    @matrix = Recommendify::InputMatrix.new(:redis_prefix => "recommendify-test", :key => "mymatrix")
+    @matrix = Predictor::InputMatrix.new(:redis_prefix => "predictor-test", :key => "mymatrix")
   end
 
   before(:each) do
@@ -11,7 +11,7 @@ describe Recommendify::InputMatrix do
   end
 
   it "should build the correct keys" do
-    @matrix.redis_key.should == "recommendify-test:mymatrix"
+    @matrix.redis_key.should == "predictor-test:mymatrix"
   end
 
   it "should respond to add_set" do
@@ -33,7 +33,7 @@ describe Recommendify::InputMatrix do
   describe "weight" do
     it "returns the weight configured or a default of 1" do
       @matrix.weight.should == 1.0  # default weight
-      matrix = Recommendify::InputMatrix.new(redis_prefix: "recommendify-test", key: "mymatrix", weight: 5.0)
+      matrix = Predictor::InputMatrix.new(redis_prefix: "predictor-test", key: "mymatrix", weight: 5.0)
       matrix.weight.should == 5.0
     end
   end

@@ -1,8 +1,8 @@
 require ::File.expand_path('../spec_helper', __FILE__)
 
-describe Recommendify::Base do
+describe Predictor::Base do
   class BaseRecommender
-    include Recommendify::Base
+    include Predictor::Base
   end
 
   before(:each) do
@@ -33,7 +33,7 @@ describe Recommendify::Base do
     it "should retrieve an input_matrix on a new instance and intialize the correct class" do
       BaseRecommender.input_matrix(:myinput)
       sm = BaseRecommender.new
-      sm.myinput.should be_a(Recommendify::InputMatrix)
+      sm.myinput.should be_a(Predictor::InputMatrix)
     end
   end
 
@@ -180,7 +180,7 @@ describe Recommendify::Base do
       sm.similarities_for("c1", with_scores: true).should eq([["c4", 6.5], ["c2", 2.0]])
       sm.similarities_for("c2", with_scores: true).should eq([["c3", 4.0], ["c1", 2.0], ["c4", 1.5]])
       sm.similarities_for("c3", with_scores: true).should eq([["c2", 4.0], ["c4", 0.5]])
-      sm.similarities_for("c4", with_scores: true).should eq([["c1", 6.5], ["c2", 1.5], ["c3", 0.5]])
+      sm.similarities_for("c4", with_scores: true, exclusion_set: ["c3"]).should eq([["c1", 6.5], ["c2", 1.5]])
     end
   end
 

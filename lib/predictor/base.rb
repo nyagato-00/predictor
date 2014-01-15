@@ -1,4 +1,4 @@
-module Recommendify::Base
+module Predictor::Base
   def self.included(base)
     base.extend(ClassMethods)
   end
@@ -21,12 +21,12 @@ module Recommendify::Base
   def input_matrices
     @input_matrices ||= Hash[self.class.input_matrices.map{ |key, opts|
       opts.merge!(:key => key, :redis_prefix => redis_prefix)
-      [ key, Recommendify::InputMatrix.new(opts) ]
+      [ key, Predictor::InputMatrix.new(opts) ]
     }]
   end
 
   def redis_prefix
-    "recommendify"
+    "predictor"
   end
 
   def redis_key(*append)
@@ -46,7 +46,7 @@ module Recommendify::Base
   end
 
   def all_items
-    Recommendify.redis.sunion input_matrices.map{|k,m| m.redis_key(:all_items)}
+    Predictor.redis.sunion input_matrices.map{|k,m| m.redis_key(:all_items)}
   end
 
   def item_score(item, normalize)
@@ -64,7 +64,7 @@ module Recommendify::Base
 
   def predictions_for(set_id=nil, item_set: nil, matrix_label: nil, with_scores: false, normalize: true, offset: 0, limit: -1)
     fail "item_set or matrix_label and set_id is required" unless item_set || (matrix_label && set_id)
-    redis = Recommendify.redis
+    redis = Predictor.redis
 
     if matrix_label
       matrix = input_matrices[matrix_label]
@@ -94,14 +94,14 @@ module Recommendify::Base
     end
   end
 
-  def similarities_for(item, with_scores: false, offset: 0, limit: -1, exclusion_set: nil)
+  def similarities_for(item, with_scores: false, offset: 0, limit: -1, exclusion_set: [])
     keys = input_matrices.map{ |k,m| m.redis_key(:similarities, item) }
     weights = input_matrices.map{ |k,m| m.weight }
     neighbors = nil
     unless keys.empty?
-      Recommendify.redis.multi do |multi|
+      Predictor.redis.multi do |multi|
         multi.zunionstore 'temp', keys, weights: weights
-        multi.zrem 'temp', exclusion_set unless exclusion_set.blank?
+        multi.zrem 'temp', exclusion_set if exclusion_set.length > 0
         neighbors = multi.zrevrange('temp', offset, limit == -1 ? limit : offset + (limit - 1), with_scores: with_scores)
         multi.del 'temp'
       end
@@ -113,7 +113,7 @@ module Recommendify::Base
 
   def sets_for(item)
     keys = input_matrices.map{ |k,m| m.redis_key(:sets, item) }
-    Recommendify.redis.sunion keys
+    Predictor.redis.sunion keys
   end
 
   def process!

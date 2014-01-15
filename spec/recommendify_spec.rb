@@ -1,14 +1,14 @@
 require ::File.expand_path('../spec_helper', __FILE__)
 
-describe Recommendify do
+describe Predictor do
 
   it "should store a redis connection" do
-    Recommendify.redis = "asd"
-    Recommendify.redis.should == "asd"
+    Predictor.redis = "asd"
+    Predictor.redis.should == "asd"
   end
 
   it "should raise an exception if unconfigured redis connection is accessed" do
-    Recommendify.redis = nil
+    Predictor.redis = nil
     lambda{ ecommendify.redis }.should raise_error
   end
 
