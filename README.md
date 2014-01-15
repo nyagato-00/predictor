@@ -4,10 +4,9 @@ Predictor
 
 Fast and efficient recommendations and predictions using Redis.
 
-_Originally forked and based on [Recommendify](https://github.com/paulasmuth/recommendify) by Paul Asmuth, so a huge thanks to him for his contributions to Recommendify. Predictor has been almost completely rewritten to
+Originally forked and based on [Recommendify](https://github.com/paulasmuth/recommendify) by Paul Asmuth, so a huge thanks to him for his contributions to Recommendify. Predictor has been almost completely rewritten to
 * Be more performant and efficient by using Redis for most logic
 * Provide predictions as well as item similarities (supports both cases of "Users that liked this book also liked ..." and "You liked these x books, so you might also like...")
-_
 
 The MIT License (MIT)
 ---------------------
