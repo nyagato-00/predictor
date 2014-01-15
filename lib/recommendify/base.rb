@@ -94,13 +94,14 @@ module Recommendify::Base
     end
   end
 
-  def similarities_for(item, with_scores: false, offset: 0, limit: -1)
+  def similarities_for(item, with_scores: false, offset: 0, limit: -1, exclusion_set: nil)
     keys = input_matrices.map{ |k,m| m.redis_key(:similarities, item) }
     weights = input_matrices.map{ |k,m| m.weight }
     neighbors = nil
     unless keys.empty?
       Recommendify.redis.multi do |multi|
         multi.zunionstore 'temp', keys, weights: weights
+        multi.zrem 'temp', exclusion_set unless exclusion_set.blank?
         neighbors = multi.zrevrange('temp', offset, limit == -1 ? limit : offset + (limit - 1), with_scores: with_scores)
         multi.del 'temp'
       end
