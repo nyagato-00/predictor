@@ -17,10 +17,20 @@ class Predictor::InputMatrix
     end
   end
 
+  def add_set!(set_id, item_ids)
+    add_set(set_id, item_ids)
+    item_ids.each { |item_id| process_item!(item_id) }
+  end
+
   def add_single(set_id, item_id)
     Predictor.redis.multi do
       add_single_nomulti(set_id, item_id)
     end
+  end
+
+  def add_single!(set_id, item_id)
+    add_single(set_id, item_id)
+    process_item!(item_id)
   end
 
   def all_items

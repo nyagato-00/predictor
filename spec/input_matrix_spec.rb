@@ -64,6 +64,15 @@ describe Predictor::InputMatrix do
     end
   end
 
+  describe "add_set!" do
+    it "calls add_set and process_item! for each item" do
+      @matrix.should_receive(:add_set).with("item1", ["foo", "bar"])
+      @matrix.should_receive(:process_item!).with("foo")
+      @matrix.should_receive(:process_item!).with("bar")
+      @matrix.add_set! "item1", ["foo", "bar"]
+    end
+  end
+
   describe "add_single" do
     it "adds the item to the 'all_items' set" do
       @matrix.all_items.should_not include("foo")
@@ -81,6 +90,14 @@ describe Predictor::InputMatrix do
       @matrix.sets_for("foo").should_not include("item1")
       @matrix.add_single "item1", "foo"
       @matrix.sets_for("foo").should include("item1")
+    end
+  end
+
+  describe "add_single!" do
+    it "calls add_single and process_item! for the item" do
+      @matrix.should_receive(:add_single).with("item1", "foo")
+      @matrix.should_receive(:process_item!).with("foo")
+      @matrix.add_single! "item1", "foo"
     end
   end
 
