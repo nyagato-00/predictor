@@ -129,8 +129,8 @@ recommender.predictions_for("user-1", matrix_label: :users)
 # Paginate too!
 recommender.predictions_for("user-1", matrix_label: :users, offset: 10, limit: 10)
 
-# Gimme some scores
-recommender.predictions_for("user-1", matrix_label: :users, with_scores: true)
+# Gimme some scores and ignore user-2....that user-2 is one sketchy fella
+recommender.predictions_for("user-1", matrix_label: :users, with_scores: true, exclusion_set: ["user-2"])
 ```
 
 Deleting Items
