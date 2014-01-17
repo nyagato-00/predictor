@@ -9,7 +9,7 @@ describe Predictor do
 
   it "should raise an exception if unconfigured redis connection is accessed" do
     Predictor.redis = nil
-    lambda{ ecommendify.redis }.should raise_error
+    lambda{ Predictor.redis }.should raise_error(/not configured/i)
   end
 
 end
