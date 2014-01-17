@@ -79,7 +79,7 @@ recommender.tags.add_set("tag-1", ["course-1", "course-2"])
 ["course-1", "course-2"].each { |course| recommender.topics.process_item!(course) }
 ```
 
-As noted above, it's important to remember that if you don't use the bang methods (add_set! and add_single!), you'll need to manually update your similarities. You can do so a variety of ways.
+As noted above, it's important to remember that if you don't use the bang methods (add_set! and add_single!), you'll need to manually update your similarities (the bang methods will likely suffice for most use cases though). You can do so a variety of ways.
 * If you want to simply update the similarities for a single item in a specific matrix:
   ````
   recommender.matrix.process_item!(item)
