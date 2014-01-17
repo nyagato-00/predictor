@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset='utf-8'>
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+    <link href='https://fonts.googleapis.com/css?family=Architects+Daughter' rel='stylesheet' type='text/css'>
+    <link rel="stylesheet" type="text/css" href="stylesheets/stylesheet.css" media="screen" />
+    <link rel="stylesheet" type="text/css" href="stylesheets/pygment_trac.css" media="screen" />
+    <link rel="stylesheet" type="text/css" href="stylesheets/print.css" media="print" />
+
+    <!--[if lt IE 9]>
+    <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+
+    <title>Predictor by Pathgather</title>
+  </head>
+
+  <body>
+    <header>
+      <div class="inner">
+        <h1>Predictor</h1>
+        <h2>Fast and efficient recommendations and predictions using Redis</h2>
+        <a href="https://github.com/Pathgather/predictor" class="button"><small>View project on</small>GitHub</a>
+      </div>
+    </header>
+
+    <div id="content-wrapper">
+      <div class="inner clearfix">
+        <section id="main-content">
+          <h1></h1>
+
+<h1>
+<a name="predictor" class="anchor" href="#predictor"><span class="octicon octicon-link"></span></a>Predictor</h1>
+
+<p>Fast and efficient recommendations and predictions using Ruby &amp; Redis. Used in production over at <a href="http://pathgather.com">Pathgather</a> to recommend content to users.</p>
+
+<p><img src="https://www.codeship.io/projects/5aeeedf0-6053-0131-2319-5ede98f174ff/status" alt=""></p>
+
+<p>Originally forked and based on <a href="https://github.com/paulasmuth/recommendify">Recommendify</a> by Paul Asmuth, so a huge thanks to him for his contributions to Recommendify. Predictor has been almost completely rewritten to</p>
+
+<ul>
+<li>Be much, much more performant and efficient by using Redis for most logic.</li>
+<li>Provide item similarities such as "Users that read this book also read ..."</li>
+<li>Provide personalized predictions based on a user's past history, such as "You read these 10 books, so you might also like to read ..."</li>
+</ul><p>At the moment, Predictor uses the <a href="http://en.wikipedia.org/wiki/Jaccard_index">Jaccard index</a> to determine similarities between items. There are other ways to do this, which we intend to implement eventually, but if you want to beat us to the punch, pull requests are quite welcome :)</p>
+
+<h2>
+<a name="installation" class="anchor" href="#installation"><span class="octicon octicon-link"></span></a>Installation</h2>
+
+<div class="highlight highlight-ruby"><pre><span class="n">gem</span> <span class="n">install</span> <span class="n">predictor</span>
+</pre></div>
+
+<p>or in your Gemfile:</p>
+
+<pre><code>gem 'predictor'
+</code></pre>
+
+<h2>
+<a name="getting-started" class="anchor" href="#getting-started"><span class="octicon octicon-link"></span></a>Getting Started</h2>
+
+<p>First step is to configure Predictor with your Redis instance.</p>
+
+<div class="highlight highlight-ruby"><pre><span class="c1"># in config/initializers/predictor.rb</span>
+<span class="no">Predictor</span><span class="o">.</span><span class="n">redis</span> <span class="o">=</span> <span class="no">Redis</span><span class="o">.</span><span class="n">new</span><span class="p">(</span><span class="ss">:url</span> <span class="o">=&gt;</span> <span class="no">ENV</span><span class="o">[</span><span class="s2">"PREDICTOR_REDIS"</span><span class="o">]</span><span class="p">)</span>
+
+<span class="c1"># Or, to improve performance, add hiredis as your driver (you'll need to install the hiredis gem first</span>
+<span class="no">Predictor</span><span class="o">.</span><span class="n">redis</span> <span class="o">=</span> <span class="no">Redis</span><span class="o">.</span><span class="n">new</span><span class="p">(</span><span class="ss">:url</span> <span class="o">=&gt;</span> <span class="no">ENV</span><span class="o">[</span><span class="s2">"PREDICTOR_REDIS"</span><span class="o">]</span><span class="p">,</span> <span class="ss">:driver</span> <span class="o">=&gt;</span> <span class="ss">:hiredis</span><span class="p">)</span>
+</pre></div>
+
+<h2>
+<a name="inputting-data" class="anchor" href="#inputting-data"><span class="octicon octicon-link"></span></a>Inputting Data</h2>
+
+<p>Create a class and include the Predictor::Base module. Define an input_matrix for each relationship you'd like to keep track of. This can be anything you think is a significant metric for the item: page views, purchases, categories the item belongs to, etc.</p>
+
+<p>Below, we're building a recommender to recommend courses based off of:</p>
+
+<ul>
+<li>Users that have taken a course. If 2 courses were taken by the same user, this is 3 times as important to us than if the courses share the same topic. This will lead to sets like:
+
+<ul>
+<li>"user1" -&gt; "course-1", "course-3",</li>
+<li>"user2" -&gt; "course-1", "course-4"</li>
+</ul>
+</li>
+<li>Tags and their courses. This will lead to sets like:
+
+<ul>
+<li>"rails" -&gt; "course-1", "course-2",</li>
+<li>"microeconomics" -&gt; "course-3", "course-4"</li>
+</ul>
+</li>
+<li>Topics and their courses. This will lead to sets like:
+
+<ul>
+<li>"computer science" -&gt; "course-1", "course-2",</li>
+<li>"economics and finance" -&gt; "course-3", "course-4"</li>
+</ul>
+</li>
+</ul><div class="highlight highlight-ruby"><pre><span class="k">class</span> <span class="nc">CourseRecommender</span>
+  <span class="kp">include</span> <span class="no">Predictor</span><span class="o">::</span><span class="no">Base</span>
+
+  <span class="n">input_matrix</span> <span class="ss">:users</span><span class="p">,</span> <span class="ss">weight</span><span class="p">:</span> <span class="mi">3</span><span class="o">.</span><span class="mi">0</span>
+  <span class="n">input_matrix</span> <span class="ss">:tags</span><span class="p">,</span> <span class="ss">weight</span><span class="p">:</span> <span class="mi">2</span><span class="o">.</span><span class="mi">0</span>
+  <span class="n">input_matrix</span> <span class="ss">:topics</span><span class="p">,</span> <span class="ss">weight</span><span class="p">:</span> <span class="mi">1</span><span class="o">.</span><span class="mi">0</span>
+<span class="k">end</span>
+</pre></div>
+
+<p>Now, we just need to update our matrices when courses are created, users take a course, topics are changed, etc:</p>
+
+<div class="highlight highlight-ruby"><pre><span class="n">recommender</span> <span class="o">=</span> <span class="no">CourseRecommender</span><span class="o">.</span><span class="n">new</span>
+
+<span class="c1"># Add a single course to topic-1's items. If topic-1 already exists as a set ID, this just adds course-1 to the set</span>
+<span class="n">recommender</span><span class="o">.</span><span class="n">topics</span><span class="o">.</span><span class="n">add_single!</span><span class="p">(</span><span class="s2">"topic-1"</span><span class="p">,</span> <span class="s2">"course-1"</span><span class="p">)</span>
+
+<span class="c1"># If your matrix is quite large, add_single! could take some time, as it must calculate the similarity scores</span>
+<span class="c1"># for course-1 across all other courses. If this is the case, use add_single and process the item at a more</span>
+<span class="c1"># convenient time, perhaps in a background job</span>
+<span class="n">recommender</span><span class="o">.</span><span class="n">topics</span><span class="o">.</span><span class="n">add_single</span><span class="p">(</span><span class="s2">"topic-1"</span><span class="p">,</span> <span class="s2">"course-1"</span><span class="p">)</span>
+<span class="n">recommender</span><span class="o">.</span><span class="n">topics</span><span class="o">.</span><span class="n">process_item!</span><span class="p">(</span><span class="s2">"course-1"</span><span class="p">)</span>
+
+<span class="c1"># Add an array of courses to tag-1. Again, these will simply be added to tag-1's existing set, if it exists.</span>
+<span class="c1"># If not, the tag-1 set will be initialized with course-1 and course-2</span>
+<span class="n">recommender</span><span class="o">.</span><span class="n">tags</span><span class="o">.</span><span class="n">add_set!</span><span class="p">(</span><span class="s2">"tag-1"</span><span class="p">,</span> <span class="o">[</span><span class="s2">"course-1"</span><span class="p">,</span> <span class="s2">"course-2"</span><span class="o">]</span><span class="p">)</span>
+
+<span class="c1"># Or, just add the set and process whenever you like</span>
+<span class="n">recommender</span><span class="o">.</span><span class="n">tags</span><span class="o">.</span><span class="n">add_set</span><span class="p">(</span><span class="s2">"tag-1"</span><span class="p">,</span> <span class="o">[</span><span class="s2">"course-1"</span><span class="p">,</span> <span class="s2">"course-2"</span><span class="o">]</span><span class="p">)</span>
+<span class="o">[</span><span class="s2">"course-1"</span><span class="p">,</span> <span class="s2">"course-2"</span><span class="o">].</span><span class="n">each</span> <span class="p">{</span> <span class="o">|</span><span class="n">course</span><span class="o">|</span> <span class="n">recommender</span><span class="o">.</span><span class="n">topics</span><span class="o">.</span><span class="n">process_item!</span><span class="p">(</span><span class="n">course</span><span class="p">)</span> <span class="p">}</span>
+</pre></div>
+
+<p>As noted above, it's important to remember that if you don't use the bang methods (add_set! and add_single!), you'll need to manually update your similarities (the bang methods will likely suffice for most use cases though). You can do so a variety of ways.</p>
+
+<ul>
+<li>If you want to simply update the similarities for a single item in a specific matrix:
+<code>
+recommender.matrix.process_item!(item)
+</code>
+</li>
+<li>If you want to update the similarities for all items in a specific matrix:
+<code>
+recommender.matrix.process!
+</code>
+</li>
+<li>If you want to update the similarities for a single item in all matrices:
+<code>
+recommender.process_item!(item)
+</code>
+</li>
+<li>If you want to update all similarities in all matrices:
+<code>
+recommender.process!
+</code>
+</li>
+</ul><h2>
+<a name="retrieving-similarities-and-recommendations" class="anchor" href="#retrieving-similarities-and-recommendations"><span class="octicon octicon-link"></span></a>Retrieving Similarities and Recommendations</h2>
+
+<p>Now that your matrices have been initialized with several relationships, you can start generating similarities and recommendations! First, let's start with similarities, which will use the weights we specify on each matrix to determine which courses share the most in common with a given course.</p>
+
+<div class="highlight highlight-ruby"><pre><span class="n">recommender</span> <span class="o">=</span> <span class="no">CourseRecommender</span><span class="o">.</span><span class="n">new</span>
+
+<span class="c1"># Return all similarities for course-1 (ordered by most similar to least).</span>
+<span class="n">recommender</span><span class="o">.</span><span class="n">similarities_for</span><span class="p">(</span><span class="s2">"course-1"</span><span class="p">)</span>
+
+<span class="c1"># Need to paginate? Not a problem! Specify an offset and a limit</span>
+<span class="n">recommender</span><span class="o">.</span><span class="n">similarities_for</span><span class="p">(</span><span class="s2">"course-1"</span><span class="p">,</span> <span class="ss">offset</span><span class="p">:</span> <span class="mi">10</span><span class="p">,</span> <span class="ss">limit</span><span class="p">:</span> <span class="mi">10</span><span class="p">)</span> <span class="c1"># Gets similarities 11-20</span>
+
+<span class="c1"># Want scores?</span>
+<span class="n">recommender</span><span class="o">.</span><span class="n">similarities_for</span><span class="p">(</span><span class="s2">"course-1"</span><span class="p">,</span> <span class="n">with_scores</span><span class="p">:</span> <span class="kp">true</span><span class="p">)</span>
+
+<span class="c1"># Want to ignore a certain set of courses in similarities?</span>
+<span class="n">recommender</span><span class="o">.</span><span class="n">similarities_for</span><span class="p">(</span><span class="s2">"course-1"</span><span class="p">,</span> <span class="n">exclusion_set</span><span class="p">:</span> <span class="o">[</span><span class="s2">"course-2"</span><span class="o">]</span><span class="p">)</span>
+</pre></div>
+
+<p>The above examples are great for situations like "Users that viewed this also liked ...", but what if you wanted to recommend courses to a user based on the courses they've already taken? Not a problem!</p>
+
+<div class="highlight highlight-ruby"><pre><span class="n">recommender</span> <span class="o">=</span> <span class="no">CourseRecommender</span><span class="o">.</span><span class="n">new</span>
+
+<span class="c1"># User has taken course-1 and course-2. Let's see what else they might like...</span>
+<span class="n">recommender</span><span class="o">.</span><span class="n">predictions_for</span><span class="p">(</span><span class="n">item_set</span><span class="p">:</span> <span class="o">[</span><span class="s2">"course-1"</span><span class="p">,</span> <span class="s2">"course-2"</span><span class="o">]</span><span class="p">)</span>
+
+<span class="c1"># Already have the set you need stored in an input matrix? In our case, we do (the users matrix stores the courses a user has taken), so we can just do:</span>
+<span class="n">recommender</span><span class="o">.</span><span class="n">predictions_for</span><span class="p">(</span><span class="s2">"user-1"</span><span class="p">,</span> <span class="n">matrix_label</span><span class="p">:</span> <span class="ss">:users</span><span class="p">)</span>
+
+<span class="c1"># Paginate too!</span>
+<span class="n">recommender</span><span class="o">.</span><span class="n">predictions_for</span><span class="p">(</span><span class="s2">"user-1"</span><span class="p">,</span> <span class="n">matrix_label</span><span class="p">:</span> <span class="ss">:users</span><span class="p">,</span> <span class="ss">offset</span><span class="p">:</span> <span class="mi">10</span><span class="p">,</span> <span class="ss">limit</span><span class="p">:</span> <span class="mi">10</span><span class="p">)</span>
+
+<span class="c1"># Gimme some scores and ignore user-2....that user-2 is one sketchy fella</span>
+<span class="n">recommender</span><span class="o">.</span><span class="n">predictions_for</span><span class="p">(</span><span class="s2">"user-1"</span><span class="p">,</span> <span class="n">matrix_label</span><span class="p">:</span> <span class="ss">:users</span><span class="p">,</span> <span class="n">with_scores</span><span class="p">:</span> <span class="kp">true</span><span class="p">,</span> <span class="n">exclusion_set</span><span class="p">:</span> <span class="o">[</span><span class="s2">"user-2"</span><span class="o">]</span><span class="p">)</span>
+</pre></div>
+
+<h2>
+<a name="deleting-items" class="anchor" href="#deleting-items"><span class="octicon octicon-link"></span></a>Deleting Items</h2>
+
+<p>If your data is deleted from your persistent storage, you certainly don't want to recommend that data to a user. To ensure that doesn't happen, simply call delete_item! on the individual matrix or recommender as a whole:</p>
+
+<div class="highlight highlight-ruby"><pre><span class="n">recommender</span> <span class="o">=</span> <span class="no">CourseRecommender</span><span class="o">.</span><span class="n">new</span>
+
+<span class="c1"># User removed course-1 from topic-1, but course-1 still exists</span>
+<span class="n">recommender</span><span class="o">.</span><span class="n">topics</span><span class="o">.</span><span class="n">delete_item!</span><span class="p">(</span><span class="s2">"course-1"</span><span class="p">)</span>
+
+<span class="c1"># course-1 was permanently deleted</span>
+<span class="n">recommender</span><span class="o">.</span><span class="n">delete_item!</span><span class="p">(</span><span class="s2">"course-1"</span><span class="p">)</span>
+
+<span class="c1"># Something crazy has happened, so let's just start fresh and wipe out all previously stored similarities:</span>
+<span class="n">recommender</span><span class="o">.</span><span class="n">clean!</span>
+</pre></div>
+
+<h2>
+<a name="problems-issues-want-to-help-out" class="anchor" href="#problems-issues-want-to-help-out"><span class="octicon octicon-link"></span></a>Problems? Issues? Want to help out?</h2>
+
+<p>Just submit a Gihub issue or pull request! We'd love to have you help out, as the most common library to use for this need, Recommendify, was last updated 2 years ago. We'll be sure to keep this maintained, but we could certainly use your help!</p>
+
+<h2>
+<a name="the-mit-license-mit" class="anchor" href="#the-mit-license-mit"><span class="octicon octicon-link"></span></a>The MIT License (MIT)</h2>
+
+<p>Copyright (c) 2014 Pathgather</p>
+
+<p>Permission is hereby granted, free of charge, to any person obtaining a copy of
+this software and associated documentation files (the "Software"), to deal in
+the Software without restriction, including without limitation the rights to
+use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+the Software, and to permit persons to whom the Software is furnished to do so,
+subject to the following conditions:</p>
+
+<p>The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.</p>
+
+<p>THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.</p>
+        </section>
+
+        <aside id="sidebar">
+          <a href="https://github.com/Pathgather/predictor/zipball/master" class="button">
+            <small>Download</small>
+            .zip file
+          </a>
+          <a href="https://github.com/Pathgather/predictor/tarball/master" class="button">
+            <small>Download</small>
+            .tar.gz file
+          </a>
+
+          <p class="repo-owner"><a href="https://github.com/Pathgather/predictor"></a> is maintained by <a href="https://github.com/Pathgather">Pathgather</a>.</p>
+
+          <p>This page was generated by <a href="https://pages.github.com">GitHub Pages</a> using the Architect theme by <a href="https://twitter.com/jasonlong">Jason Long</a>.</p>
+        </aside>
+      </div>
+    </div>
+
+  
+  </body>
+</html>
