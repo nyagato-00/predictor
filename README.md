@@ -2,7 +2,7 @@
 Predictor
 =========
 
-Fast and efficient recommendations and predictions using Ruby & Redis. Used in production over at [Pathgather](http://pathgather.com) to recommend content to users.
+Fast and efficient recommendations and predictions using Ruby & Redis. Used in production over at [Pathgather](http://pathgather.com) to generate course similarities and content recommendations to users.
 
 ![](https://www.codeship.io/projects/5aeeedf0-6053-0131-2319-5ede98f174ff/status)
 
@@ -29,7 +29,7 @@ First step is to configure Predictor with your Redis instance.
 # in config/initializers/predictor.rb
 Predictor.redis = Redis.new(:url => ENV["PREDICTOR_REDIS"])
 
-# Or, to improve performance, add hiredis as your driver (you'll need to install the hiredis gem first
+# Or, to improve performance, add hiredis as your driver (you'll need to install the hiredis gem first)
 Predictor.redis = Redis.new(:url => ENV["PREDICTOR_REDIS"], :driver => :hiredis)
 ```
 Inputting Data
@@ -100,6 +100,9 @@ As noted above, it's important to remember that if you don't use the bang method
 Retrieving Similarities and Recommendations
 ---------------------
 Now that your matrices have been initialized with several relationships, you can start generating similarities and recommendations! First, let's start with similarities, which will use the weights we specify on each matrix to determine which courses share the most in common with a given course.
+
+![Course Alternative](http://pathgather.github.io/predictor/images/course-alts.png)
+
 ```ruby
 recommender = CourseRecommender.new
 
@@ -117,6 +120,9 @@ recommender.similarities_for("course-1", exclusion_set: ["course-2"])
 ```
 
 The above examples are great for situations like "Users that viewed this also liked ...", but what if you wanted to recommend courses to a user based on the courses they've already taken? Not a problem!
+
+![Course Recommendations](http://pathgather.github.io/predictor/images/suggested.png)
+
 ```ruby
 recommender = CourseRecommender.new
 
