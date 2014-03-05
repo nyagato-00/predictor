@@ -11,6 +11,10 @@ class Predictor::InputMatrix
     (@opts[:weight] || 1).to_f
   end
 
+  def similarity_limit
+    @opts[:similarity_limit]
+  end
+
   def add_set(set_id, item_ids)
     Predictor.redis.multi do
       item_ids.each { |item| add_single_nomulti(set_id, item) }
@@ -105,13 +109,9 @@ class Predictor::InputMatrix
 
   def cache_similarity(item1, item2)
     score = calculate_jaccard(item1, item2)
-
-    if score > 0
-      Predictor.redis.multi do |multi|
-        multi.zadd(redis_key(:similarities, item1), score, item2)
-        multi.zadd(redis_key(:similarities, item2), score, item1)
-      end
-    end
+    return unless score > 0
+    add_similarity_if_necessary(item1, item2, score)
+    add_similarity_if_necessary(item2, item1, score)
   end
 
   def cache_similarities_for(item)
@@ -134,5 +134,20 @@ class Predictor::InputMatrix
     else
       return 0.0
     end
+  end
+
+  def add_similarity_if_necessary(item, similarity, score)
+    store = true
+    if Predictor.redis.zrank(redis_key(:similarities, item), similarity).nil?
+      if similarity_limit && Predictor.redis.zcard(redis_key(:similarities, item)) >= similarity_limit
+        # Similarity is not already stored and we are at limit of similarities
+        lowest_scored_item = Predictor.redis.zrangebyscore(redis_key(:similarities, item), "0", "+inf", limit: [0, 1], with_scores: true)
+        unless lowest_scored_item.empty?
+          # If score is less than or equal to the lowest score, don't store it. Otherwise, make room by removing the lowest scored similarity
+          score <= lowest_scored_item[0][1] ? store = false : Predictor.redis.zrem(redis_key(:similarities, item), lowest_scored_item[0][0])
+        end
+      end
+    end
+    Predictor.redis.zadd(redis_key(:similarities, item), score, similarity) if store
   end
 end

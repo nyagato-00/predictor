@@ -38,6 +38,14 @@ describe Predictor::InputMatrix do
     end
   end
 
+  describe "similarity_limit" do
+    it "returns the similarity_limit configured" do
+      @matrix.similarity_limit.should be_nil
+      matrix = Predictor::InputMatrix.new(redis_prefix: "predictor-test", key: "mymatrix", weight: 5.0, similarity_limit: 100)
+      matrix.similarity_limit.should == 100
+    end
+  end
+
   describe "add_set" do
     it "adds each member of the set to the 'all_items' set" do
       @matrix.all_items.should_not include("foo", "bar", "fnord", "blubb")
@@ -216,6 +224,30 @@ describe Predictor::InputMatrix do
       @matrix.all_items.should include("bar")
       @matrix.delete_item!("bar")
       @matrix.all_items.should_not include("bar")
+    end
+  end
+
+  describe "process_item!" do
+    context "with no similarity_limit" do
+      it "caches the similarities for the given item (any item also in any set the given item is in)" do
+        @matrix.add_set "item1", ["foo", "bar", "fnord", "blubb"]
+        @matrix.add_set "item2", ["bar", "fnord", "shmoo"]
+        @matrix.similarities_for("fnord").should be_empty
+        @matrix.process_item!("fnord")
+        @matrix.similarities_for("fnord").should include("foo", "bar", "blubb", "shmoo")
+      end
+    end
+
+    context "with a similarity_limit" do
+      it "only stores similarities up to the limit configured" do
+        matrix = Predictor::InputMatrix.new(redis_prefix: "predictor-test", key: "mymatrix", similarity_limit: 3)
+        matrix.add_set "item1", ["foo", "bar", "fnord", "blubb"]
+        matrix.add_set "item2", ["bar", "fnord", "shmoo", "foo", "blubb"]
+        matrix.similarities_for("fnord").should be_empty
+        matrix.process_item!("fnord")
+        matrix.similarities_for("fnord").should include("foo", "bar", "blubb")
+        matrix.similarities_for("fnord").should_not include("shmoo")
+      end
     end
   end
 
