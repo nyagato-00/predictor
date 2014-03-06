@@ -138,8 +138,8 @@ class Predictor::InputMatrix
 
   def add_similarity_if_necessary(item, similarity, score)
     store = true
-    if Predictor.redis.zrank(redis_key(:similarities, item), similarity).nil?
-      if similarity_limit && Predictor.redis.zcard(redis_key(:similarities, item)) >= similarity_limit
+    if similarity_limit
+      if Predictor.redis.zrank(redis_key(:similarities, item), similarity).nil? && Predictor.redis.zcard(redis_key(:similarities, item)) >= similarity_limit
         # Similarity is not already stored and we are at limit of similarities
         lowest_scored_item = Predictor.redis.zrangebyscore(redis_key(:similarities, item), "0", "+inf", limit: [0, 1], with_scores: true)
         unless lowest_scored_item.empty?
