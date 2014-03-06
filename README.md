@@ -155,6 +155,30 @@ recommender.delete_item!("course-1")
 recommender.clean!
 ```
 
+Memory Management
+---------------------
+Predictor works by caching the similarities for each item in each matrix, then computing overall similarities off those caches. With an even semi-large dataset, this can really eat up Redis's memory. To limit the number of similarities cached in each matrix, specify a similarity_limit option when defining the matrix.
+```ruby
+class CourseRecommender
+  include Predictor::Base
+
+  input_matrix :users, weight: 3.0, similarity_limit: 300
+  input_matrix :tags, weight: 2.0, similarity_limit: 300
+  input_matrix :topics, weight: 1.0, similarity_limit: 300
+end
+```
+
+This will ensure that only the top 300 similarities for each item are cached in each matrix. This can greatly reduce your memory usage, and if you're just using Predictor for scenarios where you maybe show the top 5 or so similar items, then this can be hugely helpful. But note, **don't set similarity_limit to 5 in that case**. This simply limits the similarities cached in each matrix, but does not limit the similarities for an item across all matrices. That is computed (and can be limited) on the fly, and uses the similarity cache in each matrix. So, you need a large enough cache in each matrix to determine an intelligent similarity list across all matrices.
+
+*Note*: This is a bit of a hack, and there are most certainly other ways to improve Predictor's memory usage for large datasets, but each appear to require a more significant change than the trivial implementation of similarity_limit above. PRs are quite welcome that experiment with these other ways :)
+
+Oh, and if you decide to tinker with your limit to try and find a sweet spot, I added a helpful method to ensure limits are obeyed to avoid regenerating all similarities. Of course, this only helps if you are decreasing the limit. If you're increasing it, you'll need to process similarities all over.
+```ruby
+recommender.users.ensure_similarity_limit_is_obeyed!  # Remove similarities that disobey our current limit
+recommender.tags.ensure_similarity_limit_is_obeyed!
+recommender.topics.ensure_similarity_limit_is_obeyed!
+```
+
 Problems? Issues? Want to help out?
 ---------------------
 Just submit a Gihub issue or pull request! We'd love to have you help out, as the most common library to use for this need, Recommendify, was last updated 2 years ago. We'll be sure to keep this maintained, but we could certainly use your help!

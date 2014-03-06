@@ -98,6 +98,17 @@ class Predictor::InputMatrix
     end
   end
 
+  def ensure_similarity_limit_is_obeyed!
+    if similarity_limit
+      items = all_items
+      Predictor.redis.multi do |multi|
+        items.each do |item|
+          multi.zremrangebyrank(redis_key(:similarities, item), 0, -(similarity_limit))
+        end
+      end
+    end
+  end
+
   private
 
   def add_single_nomulti(set_id, item_id)
