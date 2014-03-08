@@ -19,12 +19,11 @@ This is the readme for Predictor 2.0, which contains a few breaking changes from
 
 Installation
 ---------------------
+In your Gemfile:
 ```ruby
-gem install predictor
-````
-or in your Gemfile:
-````
-gem 'predictor'
+# gem 'predictor'
+# For now, you need to specify the first release candidate:
+gem 'predictor', '2.0.0.rc1'
 ```
 Getting Started
 ---------------------
