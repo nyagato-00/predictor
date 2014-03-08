@@ -2,7 +2,7 @@
 Predictor
 =========
 
-Fast and efficient recommendations and predictions using Ruby & Redis. Used in production over at [Pathgather](http://pathgather.com) to generate course similarities and content recommendations to users.
+Fast and efficient recommendations and predictions using Ruby & Redis. Developed by and used at [Pathgather](http://pathgather.com) to generate course similarities and content recommendations to users.
 
 ![](https://www.codeship.io/projects/5aeeedf0-6053-0131-2319-5ede98f174ff/status)
 
