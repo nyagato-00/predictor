@@ -13,14 +13,19 @@ Originally forked and based on [Recommendify](https://github.com/paulasmuth/reco
 
 At the moment, Predictor uses the [Jaccard index](http://en.wikipedia.org/wiki/Jaccard_index) to determine similarities between items. There are other ways to do this, which we intend to implement eventually, but if you want to beat us to the punch, pull requests are quite welcome :)
 
+Version Note
+---------------------
+These are the docs for Predictor 1. Predictor 2 is currently in development and can be found [on the 2.0.0.rc1 branch](https://github.com/Pathgather/predictor/tree/2.0.0.rc1). If you are new to Predictor, I encourage you to use that branch. If you are on Predictor 1, I also encourage you to upgrade, but please note that there are a few breaking changes, which are noted in the Readme for Predictor 2.
+
 Installation
 ---------------------
-```ruby
-gem install predictor
-````
-or in your Gemfile:
-````
+In your Gemfile:
+```
 gem 'predictor'
+```
+To use [Predictor 2](https://github.com/Pathgather/predictor/tree/2.0.0.rc1)
+```
+gem 'predictor', '2.0.0.rc1'
 ```
 Getting Started
 ---------------------
