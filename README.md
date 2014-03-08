@@ -15,7 +15,7 @@ At the moment, Predictor uses the [Jaccard index](http://en.wikipedia.org/wiki/J
 
 Notice
 ---------------------
-This is the readme for Predictor 2.0, which contains a few breaking changes from 1.0. The 1.0 readme can be found [here](https://github.com/Pathgather/predictor/blob/master/docs/READMEv1.md). See below on how to upgrade to 2.0
+This is the readme for Predictor 2.0, which contains a few breaking changes from 1.0. The 1.0 readme can be found [here](https://github.com/Pathgather/predictor/blob/2.0.0.rc1/docs/READMEv1.md). See below on how to upgrade to 2.0
 
 Installation
 ---------------------
