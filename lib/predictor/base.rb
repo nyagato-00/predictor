@@ -69,7 +69,7 @@ module Predictor::Base
   def add_to_matrix!(matrix, set, *items)
     items = items.flatten if items.count == 1 && items[0].is_a?(Array)  # Old syntax
     add_to_matrix(matrix, set, *items)
-    items.each { |item| process_item!(item) }
+    process_items!(*items)
   end
 
   def related_items(item)
@@ -120,25 +120,26 @@ module Predictor::Base
   end
 
   def process_item!(item)
-    related_items(item).each{ |related_item| cache_similarity(item, related_item) }
-    return self
+    process_items!(item)  # Old method
   end
 
-  def process!
-    all_items.each do |item|
-      process_item!(item)
+  def process_items!(*items)
+    items = items.flatten if items.count == 1 && items[0].is_a?(Array)  # Old syntax
+    items.each do |item|
+      related_items(item).each{ |related_item| cache_similarity(item, related_item) }
     end
     return self
   end
 
-  def delete_item_from_matrix(matrix, item)
-    input_matrices[matrix].delete_item(item)
+  def process!
+    process_items!(*all_items)
+    return self
   end
 
-  def delete_item_from_matrix!(matrix, item)
+  def delete_from_matrix!(matrix, item)
     # Deleting from a specific matrix, so get related_items, delete, then update the similarity of those related_items
     items = related_items(item)
-    delete_item_from_matrix(matrix, item)
+    input_matrices[matrix].delete_item(item)
     items.each { |related_item| cache_similarity(item, related_item) }
     return self
   end
@@ -165,6 +166,17 @@ module Predictor::Base
     keys = Predictor.redis.keys("#{self.redis_prefix}:*")
     unless keys.empty?
       Predictor.redis.del(keys)
+    end
+  end
+
+  def ensure_similarity_limit_is_obeyed!
+    if similarity_limit
+      items = all_items
+      Predictor.redis.multi do |multi|
+        items.each do |item|
+          multi.zremrangebyrank(redis_key(:similarities, item), 0, -(similarity_limit))
+        end
+      end
     end
   end
 

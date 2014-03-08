@@ -22,6 +22,14 @@ class Predictor::InputMatrix
     end
   end
 
+  def add_set(set, items)
+    add_to_set(set, *items)
+  end
+
+  def add_single(set, item)
+    add_to_set(set, item)
+  end
+
   def items_for(set)
     Predictor.redis.smembers redis_key(:items, set)
   end

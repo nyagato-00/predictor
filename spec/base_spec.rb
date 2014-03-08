@@ -72,11 +72,11 @@ describe Predictor::Base do
   end
 
   describe "add_to_matrix!" do
-    it "calls add_to_matrix and process_item! for the given items" do
+    it "calls add_to_matrix and process_items! for the given items" do
       BaseRecommender.input_matrix(:anotherinput)
       sm = BaseRecommender.new
       sm.should_receive(:add_to_matrix).with(:anotherinput, 'a', 'foo')
-      sm.should_receive(:process_item!).with('foo')
+      sm.should_receive(:process_items!).with('foo')
       sm.add_to_matrix!(:anotherinput, 'a', 'foo')
     end
   end
@@ -162,7 +162,7 @@ describe Predictor::Base do
     end
   end
 
-  describe "process_item!" do
+  describe "process_items!" do
     context "with no similarity_limit" do
       it "calculates the similarity between the item and all related_items (other items in a set the given item is in)" do
         BaseRecommender.input_matrix(:myfirstinput)
@@ -174,7 +174,7 @@ describe Predictor::Base do
         sm.mythirdinput.add_to_set 'set3', 'item2', 'item3'
         sm.mythirdinput.add_to_set 'set4', 'item1', 'item2', 'item3'
         sm.similarities_for('item2').should be_empty
-        sm.process_item!('item2')
+        sm.process_items!('item2')
         similarities = sm.similarities_for('item2', with_scores: true)
         similarities.should include(["item3", 4.0], ["item1", 2.5])
       end
@@ -192,7 +192,7 @@ describe Predictor::Base do
         sm.mythirdinput.add_to_set 'set3', 'item2', 'item3'
         sm.mythirdinput.add_to_set 'set4', 'item1', 'item2', 'item3'
         sm.similarities_for('item2').should be_empty
-        sm.process_item!('item2')
+        sm.process_items!('item2')
         similarities = sm.similarities_for('item2', with_scores: true)
         similarities.should include(["item3", 4.0])
         similarities.length.should == 1
@@ -201,21 +201,19 @@ describe Predictor::Base do
   end
 
   describe "process!" do
-    it "should call process_item for all_items's" do
+    it "should call process_items for all_items's" do
       BaseRecommender.input_matrix(:anotherinput)
       BaseRecommender.input_matrix(:yetanotherinput)
       sm = BaseRecommender.new
       sm.anotherinput.add_to_set('a', "foo", "bar")
       sm.yetanotherinput.add_to_set('b', "fnord", "shmoo")
-      sm.should_receive(:process_item!).with("foo")
-      sm.should_receive(:process_item!).with("bar")
-      sm.should_receive(:process_item!).with("fnord")
-      sm.should_receive(:process_item!).with("shmoo")
+      sm.all_items.should include("foo", "bar", "fnord", "shmoo")
+      sm.should_receive(:process_items!).with(*sm.all_items)
       sm.process!
     end
   end
 
-  describe "delete_item_from_matrix!" do
+  describe "delete_from_matrix!" do
     it "calls delete_item on the matrix" do
       BaseRecommender.input_matrix(:anotherinput)
       BaseRecommender.input_matrix(:yetanotherinput)
@@ -225,7 +223,7 @@ describe Predictor::Base do
       sm.process!
       sm.similarities_for('bar').should include('foo', 'shmoo')
       sm.anotherinput.should_receive(:delete_item).with('foo')
-      sm.delete_item_from_matrix!(:anotherinput, 'foo')
+      sm.delete_from_matrix!(:anotherinput, 'foo')
     end
 
     it "updates similarities" do
@@ -236,7 +234,7 @@ describe Predictor::Base do
       sm.yetanotherinput.add_to_set('b', "bar", "shmoo")
       sm.process!
       sm.similarities_for('bar').should include('foo', 'shmoo')
-      sm.delete_item_from_matrix!(:anotherinput, 'foo')
+      sm.delete_from_matrix!(:anotherinput, 'foo')
       sm.similarities_for('bar').should == ['shmoo']
     end
   end
