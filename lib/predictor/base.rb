@@ -9,6 +9,14 @@ module Predictor::Base
       @matrices[key] = opts
     end
 
+    def limit_similarities_to(val)
+      @similarity_limit = val
+    end
+
+    def similarity_limit
+      @similarity_limit
+    end
+
     def input_matrices=(val)
       @matrices = val
     end
@@ -29,6 +37,10 @@ module Predictor::Base
     "predictor"
   end
 
+  def similarity_limit
+    self.class.similarity_limit
+  end
+
   def redis_key(*append)
     ([redis_prefix] + append).flatten.compact.join(":")
   end
@@ -46,70 +58,60 @@ module Predictor::Base
   end
 
   def all_items
-    Predictor.redis.sunion input_matrices.map{|k,m| m.redis_key(:all_items)}
+    Predictor.redis.smembers(redis_key(:all_items))
   end
 
-  def item_score(item, normalize)
-    if normalize
-      similarities = similarities_for(item, with_scores: true)
-      unless similarities.empty?
-        similarities.map{|x,y| y}.reduce(:+)
-      else
-        1
-      end
-    else
-      1
+  def add_to_matrix(matrix, set, *items)
+    items = items.flatten if items.count == 1 && items[0].is_a?(Array)  # Old syntax
+    input_matrices[matrix].add_to_set(set, *items)
+  end
+
+  def add_to_matrix!(matrix, set, *items)
+    items = items.flatten if items.count == 1 && items[0].is_a?(Array)  # Old syntax
+    add_to_matrix(matrix, set, *items)
+    items.each { |item| process_item!(item) }
+  end
+
+  def related_items(item)
+    keys = []
+    input_matrices.each do |key, matrix|
+      sets = Predictor.redis.smembers(matrix.redis_key(:sets, item))
+      keys.concat(sets.map { |set| matrix.redis_key(:items, set) })
     end
+
+    keys.empty? ? [] : (Predictor.redis.sunion(keys) - [item])
   end
 
-  def predictions_for(set_id=nil, item_set: nil, matrix_label: nil, with_scores: false, normalize: true, offset: 0, limit: -1, exclusion_set: [])
-    fail "item_set or matrix_label and set_id is required" unless item_set || (matrix_label && set_id)
-    redis = Predictor.redis
+  def predictions_for(set=nil, item_set: nil, matrix_label: nil, with_scores: false, offset: 0, limit: -1, exclusion_set: [])
+    fail "item_set or matrix_label and set is required" unless item_set || (matrix_label && set)
 
     if matrix_label
       matrix = input_matrices[matrix_label]
-      item_set = redis.smembers(matrix.redis_key(:items, set_id))
+      item_set = Predictor.redis.smembers(matrix.redis_key(:items, set))
     end
 
-    item_keys = item_set.map do |item|
-      input_matrices.map{ |k,m| m.redis_key(:similarities, item) }
-    end.flatten
-
-    item_weights = item_set.map do |item|
-      score = item_score(item, normalize)
-      input_matrices.map{|k, m| m.weight/score }
-    end.flatten
-
-    unless item_keys.empty?
-      predictions = nil
-      redis.multi do |multi|
-        multi.zunionstore 'temp', item_keys, weights: item_weights
-        multi.zrem 'temp', item_set
-        multi.zrem 'temp', exclusion_set if exclusion_set.length > 0
-        predictions = multi.zrevrange 'temp', offset, limit == -1 ? limit : offset + (limit - 1), with_scores: with_scores
-        multi.del 'temp'
-      end
-      return predictions.value
-    else
-      return []
+    item_keys = item_set.map { |item| redis_key(:similarities, item) }
+    return [] if item_keys.empty?
+    predictions = nil
+    Predictor.redis.multi do |multi|
+      multi.zunionstore 'temp', item_keys
+      multi.zrem 'temp', item_set
+      multi.zrem 'temp', exclusion_set if exclusion_set.length > 0
+      predictions = multi.zrevrange 'temp', offset, limit == -1 ? limit : offset + (limit - 1), with_scores: with_scores
+      multi.del 'temp'
     end
+    predictions.value
   end
 
   def similarities_for(item, with_scores: false, offset: 0, limit: -1, exclusion_set: [])
-    keys = input_matrices.map{ |k,m| m.redis_key(:similarities, item) }
-    weights = input_matrices.map{ |k,m| m.weight }
     neighbors = nil
-    unless keys.empty?
-      Predictor.redis.multi do |multi|
-        multi.zunionstore 'temp', keys, weights: weights
-        multi.zrem 'temp', exclusion_set if exclusion_set.length > 0
-        neighbors = multi.zrevrange('temp', offset, limit == -1 ? limit : offset + (limit - 1), with_scores: with_scores)
-        multi.del 'temp'
-      end
-      return neighbors.value
-    else
-      return []
+    Predictor.redis.multi do |multi|
+      multi.zunionstore 'temp', [1, redis_key(:similarities, item)]
+      multi.zrem 'temp', exclusion_set if exclusion_set.length > 0
+      neighbors = multi.zrevrange('temp', offset, limit == -1 ? limit : offset + (limit - 1), with_scores: with_scores)
+      multi.del 'temp'
     end
+    return neighbors.value
   end
 
   def sets_for(item)
@@ -117,32 +119,86 @@ module Predictor::Base
     Predictor.redis.sunion keys
   end
 
-  def process!
-    input_matrices.each do |k,m|
-      m.process!
-    end
-    return self
-  end
-
   def process_item!(item)
-    input_matrices.each do |k,m|
-      m.process_item!(item)
+    related_items(item).each{ |related_item| cache_similarity(item, related_item) }
+    return self
+  end
+
+  def process!
+    all_items.each do |item|
+      process_item!(item)
     end
     return self
   end
 
-  def delete_item!(item_id)
+  def delete_item_from_matrix(matrix, item)
+    input_matrices[matrix].delete_item(item)
+  end
+
+  def delete_item_from_matrix!(matrix, item)
+    # Deleting from a specific matrix, so get related_items, delete, then update the similarity of those related_items
+    items = related_items(item)
+    delete_item_from_matrix(matrix, item)
+    items.each { |related_item| cache_similarity(item, related_item) }
+    return self
+  end
+
+  def delete_item!(item)
+    Predictor.redis.srem(redis_key(:all_items), item)
+    Predictor.redis.watch(redis_key(:similarities, item)) do
+      items = related_items(item)
+      Predictor.redis.multi do |multi|
+        items.each do |related_item|
+          multi.zrem(redis_key(:similarities, related_item), item)
+        end
+        multi.del redis_key(:similarities, item)
+      end
+    end
+
     input_matrices.each do |k,m|
-      m.delete_item!(item_id)
+      m.delete_item(item)
     end
     return self
   end
 
   def clean!
-    # now only flushes the keys for the instantiated recommender
     keys = Predictor.redis.keys("#{self.redis_prefix}:*")
     unless keys.empty?
       Predictor.redis.del(keys)
     end
+  end
+
+  private
+
+  def cache_similarity(item1, item2)
+    score = 0
+    input_matrices.each do |key, matrix|
+      score += (matrix.calculate_jaccard(item1, item2) * matrix.weight)
+    end
+    if score > 0
+      add_similarity_if_necessary(item1, item2, score)
+      add_similarity_if_necessary(item2, item1, score)
+    else
+      Predictor.redis.multi do |multi|
+        multi.zrem(redis_key(:similarities, item1), item2)
+        multi.zrem(redis_key(:similarities, item2), item1)
+      end
+    end
+  end
+
+  def add_similarity_if_necessary(item, similarity, score)
+    store = true
+    key = redis_key(:similarities, item)
+    if similarity_limit
+      if Predictor.redis.zrank(key, similarity).nil? && Predictor.redis.zcard(key) >= similarity_limit
+        # Similarity is not already stored and we are at limit of similarities
+        lowest_scored_item = Predictor.redis.zrangebyscore(key, "0", "+inf", limit: [0, 1], with_scores: true)
+        unless lowest_scored_item.empty?
+          # If score is less than or equal to the lowest score, don't store it. Otherwise, make room by removing the lowest scored similarity
+          score <= lowest_scored_item[0][1] ? store = false : Predictor.redis.zrem(key, lowest_scored_item[0][0])
+        end
+      end
+    end
+    Predictor.redis.zadd(key, score, similarity) if store
   end
 end
