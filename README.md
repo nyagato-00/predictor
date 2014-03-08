@@ -190,6 +190,7 @@ predictor.topics.delete_item!("course-1")
 # to delete_from_matrix! if you want to update similarities to account for the deleted item (in v1, this was a bug and didn't occur)
 predictor.delete_from_matrix!(:topics, "course-1")
 ```
+* Regenerate your recommendations, as redis keys have changed for Predictor 2. You can use the recommender.clean! to clear out old similarities, then run your rake task (or whatever you've setup) to create new similarities.
 
 Problems? Issues? Want to help out?
 ---------------------
