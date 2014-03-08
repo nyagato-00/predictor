@@ -21,9 +21,9 @@ Installation
 ---------------------
 In your Gemfile:
 ```
-gem 'predictor'
+gem 'predictor', '~> 1.0'
 ```
-To use [Predictor 2](https://github.com/Pathgather/predictor/tree/2.0.0.rc1)
+To use [Predictor 2](https://github.com/Pathgather/predictor/tree/2.0.0.rc1) (make sure you follow [this Readme](https://github.com/Pathgather/predictor/tree/2.0.0.rc1) if you are)
 ```
 gem 'predictor', '2.0.0.rc1'
 ```
