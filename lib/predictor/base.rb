@@ -79,7 +79,7 @@ module Predictor::Base
       keys.concat(sets.map { |set| matrix.redis_key(:items, set) })
     end
 
-    keys.empty? ? [] : (Predictor.redis.sunion(keys) - [item])
+    keys.empty? ? [] : (Predictor.redis.sunion(keys) - [item.to_s])
   end
 
   def predictions_for(set=nil, item_set: nil, matrix_label: nil, with_scores: false, offset: 0, limit: -1, exclusion_set: [])

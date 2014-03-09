@@ -41,7 +41,7 @@ class Predictor::InputMatrix
   def related_items(item)
     sets = Predictor.redis.smembers(redis_key(:sets, item))
     keys = sets.map { |set| redis_key(:items, set) }
-    keys.length > 0 ? Predictor.redis.sunion(keys) - [item] : []
+    keys.length > 0 ? Predictor.redis.sunion(keys) - [item.to_s] : []
   end
 
   # delete item from the matrix
@@ -67,11 +67,7 @@ class Predictor::InputMatrix
       multi.del 'temp'
     end
 
-    if y.value > 0
-      return (x.value.to_f/y.value.to_f)
-    else
-      return 0.0
-    end
+    y.value > 0 ? (x.value.to_f/y.value.to_f) : 0.0
   end
 
   private
