@@ -13,7 +13,7 @@ Gem::Specification.new do |s|
 
   s.add_dependency "redis", ">= 3.0.0"
 
-  s.add_development_dependency "rspec", "~> 2.8.0"
+  s.add_development_dependency "rspec", "~> 2.14.0"
 
   s.files         = `git ls-files`.split("\n") - [".gitignore", ".rspec", ".travis.yml"]
   s.test_files    = `git ls-files -- spec/*`.split("\n")
