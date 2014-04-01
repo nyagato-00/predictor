@@ -1,8 +1,5 @@
-require "rspec"
-require "redis"
+require "predictor"
 require "pry"
-
-require ::File.expand_path('../../lib/predictor', __FILE__)
 
 def flush_redis!
   Predictor.redis = Redis.new
@@ -18,7 +15,6 @@ module Predictor::Base
   end
 
 end
-
 
 class TestRecommender
   include Predictor::Base
