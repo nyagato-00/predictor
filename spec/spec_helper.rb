@@ -24,17 +24,16 @@ class TestRecommender
   include Predictor::Base
 
   input_matrix :jaccard_one
-
 end
 
 class Predictor::TestInputMatrix
 
   def initialize(opts)
-  	@opts = opts
+    @opts = opts
   end
 
   def method_missing(method, *args)
-  	@opts[method]
+    @opts[method]
   end
 
 end

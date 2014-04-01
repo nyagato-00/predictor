@@ -59,7 +59,8 @@ class Predictor::InputMatrix
   end
 
   def score(item1, item2)
-    calculate_jaccard(item1, item2)
+    measure_name = @opts.fetch(:measure, :jaccard)
+    send("calculate_#{measure_name}", item1, item2)
   end
 
   def calculate_jaccard(item1, item2)
@@ -72,6 +73,22 @@ class Predictor::InputMatrix
     end
 
     y.value > 0 ? (x.value.to_f/y.value.to_f) : 0.0
+  end
+
+  def calculate_sorensen_coefficient(item1, item2)
+    x = nil
+    y = nil
+    z = nil
+
+    Predictor.redis.multi do |multi|
+      x = multi.sinterstore 'temp', [redis_key(:sets, item1), redis_key(:sets, item2)]
+      y = multi.scard redis_key(:sets, item1)
+      z = multi.scard redis_key(:sets, item2)
+      multi.del 'temp'
+    end
+
+    denom = (y.value + z.value)
+    denom > 0 ? (2 * (x.value) / denom.to_f) : 0.0
   end
 
   private

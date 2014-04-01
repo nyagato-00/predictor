@@ -1,9 +1,13 @@
 require ::File.expand_path('../spec_helper', __FILE__)
 
 describe Predictor::InputMatrix do
+  let(:options) { @default_options.merge(@options) }
+
+  before(:each) { @options = {} }
 
   before(:all) do
-    @matrix = Predictor::InputMatrix.new(:redis_prefix => "predictor-test", :key => "mymatrix")
+    @default_options = { redis_prefix: "predictor-test", key: "mymatrix" }
+    @matrix = Predictor::InputMatrix.new(@default_options)
   end
 
   before(:each) do
@@ -101,13 +105,27 @@ describe Predictor::InputMatrix do
   end
 
   describe "#score" do
+    let(:matrix) { Predictor::InputMatrix.new(options) }
+
     context "default" do
       it "scores as jaccard index by default" do
-        @matrix.add_to_set "item1", "foo", "bar", "fnord", "blubb"
-        @matrix.add_to_set "item2", "bar", "fnord", "shmoo", "snafu"
-        @matrix.add_to_set "item3", "bar", "nada", "snafu"
+        matrix.add_to_set "item1", "foo", "bar", "fnord", "blubb"
+        matrix.add_to_set "item2", "bar", "fnord", "shmoo", "snafu"
+        matrix.add_to_set "item3", "bar", "nada", "snafu"
 
-        @matrix.score("bar", "snafu").should == 2.0/3.0
+        matrix.score("bar", "snafu").should == 2.0/3.0
+      end
+    end
+
+    context "sorensen_coefficient" do
+      before { @options[:measure] = :sorensen_coefficient }
+
+      it "should calculate the correct sorensen index" do
+        matrix.add_to_set "item1", "foo", "bar", "fnord", "blubb"
+        matrix.add_to_set "item2", "fnord", "shmoo", "snafu"
+        matrix.add_to_set "item3", "bar", "nada", "snafu"
+
+        matrix.score("bar", "snafu").should == 2.0/4.0
       end
     end
   end
