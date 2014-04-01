@@ -115,6 +115,12 @@ describe Predictor::InputMatrix do
 
         matrix.score("bar", "snafu").should == 2.0/3.0
       end
+
+      it "should handle missing sets" do
+        matrix.add_to_set "item1", "foo", "bar", "fnord", "blubb"
+
+        matrix.score("is", "missing").should == 0.0
+      end
     end
 
     context "sorensen_coefficient" do
@@ -126,6 +132,12 @@ describe Predictor::InputMatrix do
         matrix.add_to_set "item3", "bar", "nada", "snafu"
 
         matrix.score("bar", "snafu").should == 2.0/4.0
+      end
+
+      it "should handle missing sets" do
+        matrix.add_to_set "item1", "foo", "bar", "fnord", "blubb"
+
+        matrix.score("is", "missing").should == 0.0
       end
     end
   end
