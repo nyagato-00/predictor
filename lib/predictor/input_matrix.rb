@@ -58,6 +58,10 @@ class Predictor::InputMatrix
     end
   end
 
+  def score(item1, item2)
+    calculate_jaccard(item1, item2)
+  end
+
   def calculate_jaccard(item1, item2)
     x = nil
     y = nil

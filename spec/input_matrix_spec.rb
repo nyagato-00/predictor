@@ -100,7 +100,19 @@ describe Predictor::InputMatrix do
     @matrix.calculate_jaccard("bar", "snafu").should == 2.0/3.0
   end
 
-private
+  describe "#score" do
+    context "default" do
+      it "scores as jaccard index by default" do
+        @matrix.add_to_set "item1", "foo", "bar", "fnord", "blubb"
+        @matrix.add_to_set "item2", "bar", "fnord", "shmoo", "snafu"
+        @matrix.add_to_set "item3", "bar", "nada", "snafu"
+
+        @matrix.score("bar", "snafu").should == 2.0/3.0
+      end
+    end
+  end
+
+  private
 
   def add_two_item_test_data!(matrix)
     matrix.add_to_set("user42", "fnord", "blubb")
