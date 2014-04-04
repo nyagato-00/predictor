@@ -96,19 +96,20 @@ describe Predictor::InputMatrix do
     end
   end
 
-  it "should calculate the correct jaccard index" do
-    @matrix.add_to_set "item1", "foo", "bar", "fnord", "blubb"
-    @matrix.add_to_set "item2", "bar", "fnord", "shmoo", "snafu"
-    @matrix.add_to_set "item3", "bar", "nada", "snafu"
-
-    @matrix.calculate_jaccard("bar", "snafu").should == 2.0/3.0
-  end
-
   describe "#score" do
     let(:matrix) { Predictor::InputMatrix.new(options) }
 
     context "default" do
       it "scores as jaccard index by default" do
+        matrix.add_to_set "item1", "foo", "bar", "fnord", "blubb"
+        matrix.add_to_set "item2", "bar", "fnord", "shmoo", "snafu"
+        matrix.add_to_set "item3", "bar", "nada", "snafu"
+
+        matrix.score("bar", "snafu").should == 2.0/3.0
+      end
+
+      it "scores as jaccard index when given option" do
+        matrix = Predictor::InputMatrix.new(options.merge(measure: :jaccard_index))
         matrix.add_to_set "item1", "foo", "bar", "fnord", "blubb"
         matrix.add_to_set "item2", "bar", "fnord", "shmoo", "snafu"
         matrix.add_to_set "item3", "bar", "nada", "snafu"

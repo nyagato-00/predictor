@@ -60,16 +60,13 @@ module Predictor
     end
 
     def score(item1, item2)
-      measure_name = @opts.fetch(:measure, :jaccard)
-      send("calculate_#{measure_name}", item1, item2)
+      measure_name = @opts.fetch(:measure, :jaccard_index)
+      Distance.send(measure_name, redis_key(:sets, item1), redis_key(:sets, item2), Predictor.redis)
     end
 
     def calculate_jaccard(item1, item2)
+      warn 'InputMatrix#calculate_jaccard is now deprecated. Use InputMatrix#score instead'
       Distance.jaccard_index(redis_key(:sets, item1), redis_key(:sets, item2), Predictor.redis)
-    end
-
-    def calculate_sorensen_coefficient(item1, item2)
-      Distance.sorensen_coefficient(redis_key(:sets, item1), redis_key(:sets, item2), Predictor.redis)
     end
 
     private
