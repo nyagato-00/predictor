@@ -13,27 +13,27 @@ describe Predictor::Base do
   describe "configuration" do
     it "should add an input_matrix by 'key'" do
       BaseRecommender.input_matrix(:myinput)
-      BaseRecommender.input_matrices.keys.should == [:myinput]
+      expect(BaseRecommender.input_matrices.keys).to eq([:myinput])
     end
 
     it "should retrieve an input_matrix on a new instance" do
       BaseRecommender.input_matrix(:myinput)
       sm = BaseRecommender.new
-      lambda{ sm.myinput }.should_not raise_error
+      expect{ sm.myinput }.not_to raise_error
     end
 
     it "should retrieve an input_matrix on a new instance and correctly overload respond_to?" do
       BaseRecommender.input_matrix(:myinput)
       sm = BaseRecommender.new
-      sm.respond_to?(:process!).should be_true
-      sm.respond_to?(:myinput).should be_true
-      sm.respond_to?(:fnord).should be_false
+      expect(sm.respond_to?(:process!)).to be_true
+      expect(sm.respond_to?(:myinput)).to be_true
+      expect(sm.respond_to?(:fnord)).to be_false
     end
 
     it "should retrieve an input_matrix on a new instance and intialize the correct class" do
       BaseRecommender.input_matrix(:myinput)
       sm = BaseRecommender.new
-      sm.myinput.should be_a(Predictor::InputMatrix)
+      expect(sm.myinput).to be_a(Predictor::InputMatrix)
     end
   end
 
@@ -42,8 +42,8 @@ describe Predictor::Base do
       BaseRecommender.input_matrix(:myfirstinput)
       BaseRecommender.input_matrix(:mysecondinput)
       sm = BaseRecommender.new
-      sm.myfirstinput.should_receive(:process_item!).with("fnorditem").and_return([["fooitem",0.5]])
-      sm.mysecondinput.should_receive(:process_item!).with("fnorditem").and_return([["fooitem",0.5]])
+      expect(sm.myfirstinput).to receive(:process_item!).with("fnorditem").and_return([["fooitem",0.5]])
+      expect(sm.mysecondinput).to receive(:process_item!).with("fnorditem").and_return([["fooitem",0.5]])
       sm.process_item!("fnorditem")
     end
 
@@ -51,8 +51,8 @@ describe Predictor::Base do
       BaseRecommender.input_matrix(:myfirstinput)
       BaseRecommender.input_matrix(:mysecondinput)
       sm = BaseRecommender.new
-      sm.myfirstinput.should_receive(:process_item!).and_return([["fooitem",0.5]])
-      sm.mysecondinput.should_receive(:process_item!).and_return([["fooitem",0.75], ["baritem", 1.0]])
+      expect(sm.myfirstinput).to receive(:process_item!).and_return([["fooitem",0.5]])
+      expect(sm.mysecondinput).to receive(:process_item!).and_return([["fooitem",0.75], ["baritem", 1.0]])
       sm.process_item!("fnorditem")
     end
 
@@ -60,8 +60,8 @@ describe Predictor::Base do
       BaseRecommender.input_matrix(:myfirstinput, :weight => 4.0)
       BaseRecommender.input_matrix(:mysecondinput)
       sm = BaseRecommender.new
-      sm.myfirstinput.should_receive(:process_item!).and_return([["fooitem",0.5]])
-      sm.mysecondinput.should_receive(:process_item!).and_return([["fooitem",0.75], ["baritem", 1.0]])
+      expect(sm.myfirstinput).to receive(:process_item!).and_return([["fooitem",0.5]])
+      expect(sm.mysecondinput).to receive(:process_item!).and_return([["fooitem",0.75], ["baritem", 1.0]])
       sm.process_item!("fnorditem")
     end
   end
@@ -73,8 +73,8 @@ describe Predictor::Base do
       sm = BaseRecommender.new
       sm.anotherinput.add_set('a', ["foo", "bar"])
       sm.yetanotherinput.add_set('b', ["fnord", "shmoo"])
-      sm.all_items.length.should == 4
-      sm.all_items.should include("foo", "bar", "fnord", "shmoo")
+      expect(sm.all_items.length).to eq(4)
+      expect(sm.all_items).to include("foo", "bar", "fnord", "shmoo")
     end
 
     it "should retrieve all items from all input matrices (uniquely)" do
@@ -83,8 +83,8 @@ describe Predictor::Base do
       sm = BaseRecommender.new
       sm.anotherinput.add_set('a', ["foo", "bar"])
       sm.yetanotherinput.add_set('b', ["fnord", "bar"])
-      sm.all_items.length.should == 3
-      sm.all_items.should include("foo", "bar", "fnord")
+      expect(sm.all_items.length).to eq(3)
+      expect(sm.all_items).to include("foo", "bar", "fnord")
     end
   end
 
@@ -95,8 +95,8 @@ describe Predictor::Base do
       sm = BaseRecommender.new
       sm.anotherinput.add_set('a', ["foo", "bar"])
       sm.yetanotherinput.add_set('b', ["fnord", "shmoo"])
-      sm.anotherinput.should_receive(:process!).exactly(1).times
-      sm.yetanotherinput.should_receive(:process!).exactly(1).times
+      expect(sm.anotherinput).to receive(:process!).exactly(1).times
+      expect(sm.yetanotherinput).to receive(:process!).exactly(1).times
       sm.process!
     end
   end
@@ -115,13 +115,13 @@ describe Predictor::Base do
       sm.tags.add_set('tag3', ["shmoo", "nada"])
       sm.process!
       predictions = sm.predictions_for('me', matrix_label: :users)
-      predictions.should == ["shmoo", "other", "nada"]
+      expect(predictions).to eq(["shmoo", "other", "nada"])
       predictions = sm.predictions_for(item_set: ["foo", "bar", "fnord"])
-      predictions.should == ["shmoo", "other", "nada"]
+      expect(predictions).to eq(["shmoo", "other", "nada"])
       predictions = sm.predictions_for('me', matrix_label: :users, offset: 1, limit: 1)
-      predictions.should == ["other"]
+      expect(predictions).to eq(["other"])
       predictions = sm.predictions_for('me', matrix_label: :users, offset: 1)
-      predictions.should == ["other", "nada"]
+      expect(predictions).to eq(["other", "nada"])
     end
 
     it "correctly normalizes predictions" do
@@ -141,24 +141,24 @@ describe Predictor::Base do
       sm.process!
 
       predictions = sm.predictions_for('user1', matrix_label: :users, with_scores: true, normalize: false)
-      predictions.should eq([["c3", 4.5]])
+      expect(predictions).to eq([["c3", 4.5]])
       predictions = sm.predictions_for('user2',  matrix_label: :users, with_scores: true, normalize: false)
-      predictions.should eq([["c1", 6.5], ["c2", 5.5]])
+      expect(predictions).to eq([["c1", 6.5], ["c2", 5.5]])
       predictions = sm.predictions_for('user1', matrix_label: :users, with_scores: true, normalize: true)
-      predictions[0][0].should eq("c3")
-      predictions[0][1].should be_within(0.001).of(0.592)
+      expect(predictions[0][0]).to eq("c3")
+      expect(predictions[0][1]).to be_within(0.001).of(0.592)
       predictions = sm.predictions_for('user2', matrix_label: :users, with_scores: true, normalize: true)
-      predictions[0][0].should eq("c2")
-      predictions[0][1].should be_within(0.001).of(1.065)
-      predictions[1][0].should eq("c1")
-      predictions[1][1].should be_within(0.001).of(0.764)
+      expect(predictions[0][0]).to eq("c2")
+      expect(predictions[0][1]).to be_within(0.001).of(1.065)
+      expect(predictions[1][0]).to eq("c1")
+      expect(predictions[1][1]).to be_within(0.001).of(0.764)
     end
   end
 
   describe "similarities_for(item_id)" do
     it "should not throw exception for non existing items" do
       sm = BaseRecommender.new
-      sm.similarities_for("not_existing_item").length.should == 0
+      expect(sm.similarities_for("not_existing_item").length).to eq(0)
     end
 
     it "correctly weighs and sums input matrices" do
@@ -176,10 +176,10 @@ describe Predictor::Base do
       sm.tags.add_set('tag2', ["c1", "c4"])
 
       sm.process!
-      sm.similarities_for("c1", with_scores: true).should eq([["c4", 6.5], ["c2", 2.0]])
-      sm.similarities_for("c2", with_scores: true).should eq([["c3", 4.0], ["c1", 2.0], ["c4", 1.5]])
-      sm.similarities_for("c3", with_scores: true).should eq([["c2", 4.0], ["c4", 0.5]])
-      sm.similarities_for("c4", with_scores: true, exclusion_set: ["c3"]).should eq([["c1", 6.5], ["c2", 1.5]])
+      expect(sm.similarities_for("c1", with_scores: true)).to eq([["c4", 6.5], ["c2", 2.0]])
+      expect(sm.similarities_for("c2", with_scores: true)).to eq([["c3", 4.0], ["c1", 2.0], ["c4", 1.5]])
+      expect(sm.similarities_for("c3", with_scores: true)).to eq([["c2", 4.0], ["c4", 0.5]])
+      expect(sm.similarities_for("c4", with_scores: true, exclusion_set: ["c3"])).to eq([["c1", 6.5], ["c2", 1.5]])
     end
   end
 
@@ -191,9 +191,9 @@ describe Predictor::Base do
       sm.set1.add_set "item1", ["foo", "bar"]
       sm.set1.add_set "item2", ["nada", "bar"]
       sm.set2.add_set "item3", ["bar", "other"]
-      sm.sets_for("bar").length.should == 3
-      sm.sets_for("bar").should include("item1", "item2", "item3")
-      sm.sets_for("other").should == ["item3"]
+      expect(sm.sets_for("bar").length).to eq(3)
+      expect(sm.sets_for("bar")).to include("item1", "item2", "item3")
+      expect(sm.sets_for("other")).to eq(["item3"])
     end
   end
 
@@ -202,8 +202,8 @@ describe Predictor::Base do
       BaseRecommender.input_matrix(:myfirstinput)
       BaseRecommender.input_matrix(:mysecondinput)
       sm = BaseRecommender.new
-      sm.myfirstinput.should_receive(:delete_item!).with("fnorditem")
-      sm.mysecondinput.should_receive(:delete_item!).with("fnorditem")
+      expect(sm.myfirstinput).to receive(:delete_item!).with("fnorditem")
+      expect(sm.mysecondinput).to receive(:delete_item!).with("fnorditem")
       sm.delete_item!("fnorditem")
     end
   end
@@ -216,9 +216,9 @@ describe Predictor::Base do
       sm.set1.add_set "item1", ["foo", "bar"]
       sm.set1.add_set "item2", ["nada", "bar"]
       sm.set2.add_set "item3", ["bar", "other"]
-      Predictor.redis.keys("#{sm.redis_prefix}:*").should_not be_empty
+      expect(Predictor.redis.keys("#{sm.redis_prefix}:*")).not_to be_empty
       sm.clean!
-      Predictor.redis.keys("#{sm.redis_prefix}:*").should be_empty
+      expect(Predictor.redis.keys("#{sm.redis_prefix}:*")).to be_empty
     end
   end
 end
