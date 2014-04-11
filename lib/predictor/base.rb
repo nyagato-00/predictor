@@ -185,7 +185,7 @@ module Predictor::Base
   def cache_similarity(item1, item2)
     score = 0
     input_matrices.each do |key, matrix|
-      score += (matrix.calculate_jaccard(item1, item2) * matrix.weight)
+      score += (matrix.score(item1, item2) * matrix.weight)
     end
     if score > 0
       add_similarity_if_necessary(item1, item2, score)
