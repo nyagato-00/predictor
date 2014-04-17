@@ -1,8 +1,5 @@
-require "rspec"
-require "redis"
+require "predictor"
 require "pry"
-
-require ::File.expand_path('../../lib/predictor', __FILE__)
 
 def flush_redis!
   Predictor.redis = Redis.new
@@ -19,22 +16,20 @@ module Predictor::Base
 
 end
 
-
 class TestRecommender
   include Predictor::Base
 
   input_matrix :jaccard_one
-
 end
 
 class Predictor::TestInputMatrix
 
   def initialize(opts)
-  	@opts = opts
+    @opts = opts
   end
 
   def method_missing(method, *args)
-  	@opts[method]
+    @opts[method]
   end
 
 end

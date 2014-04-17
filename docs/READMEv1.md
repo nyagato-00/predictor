@@ -2,7 +2,7 @@
 Predictor
 =========
 
-Fast and efficient recommendations and predictions using Ruby & Redis. Developed by and used at [Pathgather](http://pathgather.com) to generate course similarities and content recommendations to users.
+Fast and efficient recommendations and predictions using Ruby & Redis. Used in production over at [Pathgather](http://pathgather.com) to generate course similarities and content recommendations to users.
 
 ![](https://www.codeship.io/projects/5aeeedf0-6053-0131-2319-5ede98f174ff/status)
 
@@ -11,16 +11,15 @@ Originally forked and based on [Recommendify](https://github.com/paulasmuth/reco
 * Provide item similarities such as "Users that read this book also read ..."
 * Provide personalized predictions based on a user's past history, such as "You read these 10 books, so you might also like to read ..."
 
-At the moment, Predictor uses the [Jaccard index](http://en.wikipedia.org/wiki/Jaccard_index) or the [Sorenson-Dice coefficient](http://en.wikipedia.org/wiki/S%C3%B8rensen%E2%80%93Dice_coefficient) (default is Jaccard) to determine similarities between items. There are other ways to do this, which we intend to implement eventually, but if you want to beat us to the punch, pull requests are quite welcome :)
-
-Notice
----------------------
-This is the readme for Predictor 2.0, which contains a few breaking changes from 1.0. The 1.0 readme can be found [here](https://github.com/Pathgather/predictor/blob/master/docs/READMEv1.md). See below on how to upgrade to 2.0
+At the moment, Predictor uses the [Jaccard index](http://en.wikipedia.org/wiki/Jaccard_index) to determine similarities between items. There are other ways to do this, which we intend to implement eventually, but if you want to beat us to the punch, pull requests are quite welcome :)
 
 Installation
 ---------------------
-In your Gemfile:
 ```ruby
+gem install predictor
+````
+or in your Gemfile:
+````
 gem 'predictor'
 ```
 Getting Started
@@ -33,7 +32,6 @@ Predictor.redis = Redis.new(:url => ENV["PREDICTOR_REDIS"])
 # Or, to improve performance, add hiredis as your driver (you'll need to install the hiredis gem first)
 Predictor.redis = Redis.new(:url => ENV["PREDICTOR_REDIS"], :driver => :hiredis)
 ```
-
 Inputting Data
 ---------------------
 Create a class and include the Predictor::Base module. Define an input_matrix for each relationship you'd like to keep track of. This can be anything you think is a significant metric for the item: page views, purchases, categories the item belongs to, etc.
@@ -53,10 +51,9 @@ Below, we're building a recommender to recommend courses based off of:
 class CourseRecommender
   include Predictor::Base
 
-  limit_similarities_to 500   # Optional, but if specified, Predictor only caches the top x similarities for an item at any given time. Can greatly help with efficient use of Redis memory
   input_matrix :users, weight: 3.0
   input_matrix :tags, weight: 2.0
-  input_matrix :topics, weight: 1.0, measure: :sorensen_coefficient # Use Sorenson over Jaccard
+  input_matrix :topics, weight: 1.0
 end
 ```
 
@@ -65,21 +62,37 @@ Now, we just need to update our matrices when courses are created, users take a 
 recommender = CourseRecommender.new
 
 # Add a single course to topic-1's items. If topic-1 already exists as a set ID, this just adds course-1 to the set
-recommender.add_to_matrix!(:topics, "topic-1", "course-1")
+recommender.topics.add_single!("topic-1", "course-1")
 
-# If your dataset is even remotely large, add_to_matrix! could take some time, as it must calculate the similarity scores
-# for course-1 and other courses that share a set with course-1. If this is the case, use add_to_matrix and
-# process the items at a more convenient time, perhaps in a background job
-recommender.topics.add_to_set("topic-1", "course-1", "course-2") # Same as recommender.add_to_matrix(:topics, "topic-1", "course-1", "course-2")
-recommender.process_items!("course-1", "course-2")
+# If your matrix is quite large, add_single! could take some time, as it must calculate the similarity scores
+# for course-1 across all other courses. If this is the case, use add_single and process the item at a more
+# convenient time, perhaps in a background job
+recommender.topics.add_single("topic-1", "course-1")
+recommender.topics.process_item!("course-1")
+
+# Add an array of courses to tag-1. Again, these will simply be added to tag-1's existing set, if it exists.
+# If not, the tag-1 set will be initialized with course-1 and course-2
+recommender.tags.add_set!("tag-1", ["course-1", "course-2"])
+
+# Or, just add the set and process whenever you like
+recommender.tags.add_set("tag-1", ["course-1", "course-2"])
+["course-1", "course-2"].each { |course| recommender.topics.process_item!(course) }
 ```
 
-As noted above, it's important to remember that if you don't use the bang method 'add_to_matrix!', you'll need to manually update your similarities. If your dataset is even remotely large, you'll probably want to do this:
-* If you want to update the similarities for certain item(s):
+As noted above, it's important to remember that if you don't use the bang methods (add_set! and add_single!), you'll need to manually update your similarities (the bang methods will likely suffice for most use cases though). You can do so a variety of ways.
+* If you want to simply update the similarities for a single item in a specific matrix:
   ````
-  recommender.process_items!(item1, item2, etc)
+  recommender.matrix.process_item!(item)
   ````
-* If you want to update all similarities for all items:
+* If you want to update the similarities for all items in a specific matrix:
+  ````
+  recommender.matrix.process!
+  ````
+* If you want to update the similarities for a single item in all matrices:
+  ````
+  recommender.process_item!(item)
+  ````
+* If you want to update all similarities in all matrices:
   ````
   recommender.process!
   ````
@@ -122,18 +135,18 @@ recommender.predictions_for("user-1", matrix_label: :users)
 # Paginate too!
 recommender.predictions_for("user-1", matrix_label: :users, offset: 10, limit: 10)
 
-# Gimme some scores and ignore course-2....that course-2 is one sketchy fella
-recommender.predictions_for("user-1", matrix_label: :users, with_scores: true, exclusion_set: ["course-2"])
+# Gimme some scores and ignore user-2....that user-2 is one sketchy fella
+recommender.predictions_for("user-1", matrix_label: :users, with_scores: true, exclusion_set: ["user-2"])
 ```
 
 Deleting Items
 ---------------------
-If your data is deleted from your persistent storage, you certainly don't want to recommend it to a user. To ensure that doesn't happen, simply call delete_from_matrix! with the individual matrix or delete_item! if the item is completely gone:
+If your data is deleted from your persistent storage, you certainly don't want to recommend that data to a user. To ensure that doesn't happen, simply call delete_item! on the individual matrix or recommender as a whole:
 ```ruby
 recommender = CourseRecommender.new
 
 # User removed course-1 from topic-1, but course-1 still exists
-recommender.delete_from_matrix!(:topics, "course-1")
+recommender.topics.delete_item!("course-1")
 
 # course-1 was permanently deleted
 recommender.delete_item!("course-1")
@@ -142,53 +155,29 @@ recommender.delete_item!("course-1")
 recommender.clean!
 ```
 
-Limiting Similarities
+Memory Management
 ---------------------
-By default, Predictor caches all similarities for all items, with no limit. That means if you have 10,000 items, and each item is somehow related to the other, we'll have 10,000 sets each with 9,999 items. That's going to use Redis' memory quite quickly. To limit this, specify the limit_similarities_to option.
+Predictor works by caching the similarities for each item in each matrix, then computing overall similarities off those caches. With an even semi-large dataset, this can really eat up Redis's memory. To limit the number of similarities cached in each matrix, specify a similarity_limit option when defining the matrix.
 ```ruby
 class CourseRecommender
   include Predictor::Base
 
-  limit_similarities_to 500
-  input_matrix :users, weight: 3.0
-  input_matrix :tags, weight: 2.0
-  input_matrix :topics, weight: 1.0
+  input_matrix :users, weight: 3.0, similarity_limit: 300
+  input_matrix :tags, weight: 2.0, similarity_limit: 300
+  input_matrix :topics, weight: 1.0, similarity_limit: 300
 end
 ```
 
-This can really save a ton of memory. Just remember though, predictions fetched with the predictions_for call utilzes the similarity caches, so if you're using predictions_for, make sure you set the limit high enough so that intelligent predictions can be generated. If you aren't using predictions and are just using similarities, then feel free to set this to the maximum number of similarities you'd possibly want to show!
+This will ensure that only the top 300 similarities for each item are cached in each matrix. This can greatly reduce your memory usage, and if you're just using Predictor for scenarios where you maybe show the top 5 or so similar items, then this can be hugely helpful. But note, **don't set similarity_limit to 5 in that case**. This simply limits the similarities cached in each matrix, but does not limit the similarities for an item across all matrices. That is computed (and can be limited) on the fly, and uses the similarity cache in each matrix. So, you need a large enough cache in each matrix to determine an intelligent similarity list across all matrices.
 
-Upgrading from 1.0 to 2.0
----------------------
-As mentioned, 2.0.0 is quite a bit different than 1.0.0, so simply upgrading with no changes likely won't work. My apologies for this. I promise this won't happen in future releases, as I'm much more confident in this Predictor release than the last. Anywho, upgrading really shouldn't be that much of a pain if you follow these steps:
+*Note*: This is a bit of a hack, and there are most certainly other ways to improve Predictor's memory usage for large datasets, but each appear to require a more significant change than the trivial implementation of similarity_limit above. PRs are quite welcome that experiment with these other ways :)
 
-* Change predictor.matrix.add_set! and predictor.matrix.add_single! calls to predictor.add_to_matrix!. For example:
+Oh, and if you decide to tinker with your limit to try and find a sweet spot, I added a helpful method to ensure limits are obeyed to avoid regenerating all similarities. Of course, this only helps if you are decreasing the limit. If you're increasing it, you'll need to process similarities all over.
 ```ruby
-# Change
-predictor.topics.add_single!("topic-1", "course-1")
-# to
-predictor.add_to_matrix!(:topics, "topic-1", "course-1")
-
-# Change
-predictor.tags.add_set!("tag-1", ["course-1", "course-2"])
-# to
-predictor.add_to_matrix!(:tags, "tag-1", "course-1", "course-2")
+recommender.users.ensure_similarity_limit_is_obeyed!  # Remove similarities that disobey our current limit
+recommender.tags.ensure_similarity_limit_is_obeyed!
+recommender.topics.ensure_similarity_limit_is_obeyed!
 ```
-* Change predictor.matrix.process! or predictor.matrix.process_item! calls to just predictor.process! or predictor.process_items!
-```ruby
-# Change
-predictor.topics.process_item!("course-1")
-# to
-predictor.process_items!("course-1")
-```
-* Change predictor.matrix.delete_item! calls to predictor.delete_from_matrix!. This will update similarities too, so you may want to queue this to run in a background job.
-```ruby
-# Change
-predictor.topics.delete_item!("course-1")
-# to delete_from_matrix! if you want to update similarities to account for the deleted item (in v1, this was a bug and didn't occur)
-predictor.delete_from_matrix!(:topics, "course-1")
-```
-* Regenerate your recommendations, as redis keys have changed for Predictor 2. You can use the recommender.clean! to clear out old similarities, then run your rake task (or whatever you've setup) to create new similarities.
 
 Problems? Issues? Want to help out?
 ---------------------
@@ -214,3 +203,4 @@ FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
 COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
 IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
