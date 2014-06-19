@@ -53,7 +53,6 @@ Below, we're building a recommender to recommend courses based off of:
 class CourseRecommender
   include Predictor::Base
 
-  limit_similarities_to 500   # Optional, but if specified, Predictor only caches the top x similarities for an item at any given time. Can greatly help with efficient use of Redis memory
   input_matrix :users, weight: 3.0
   input_matrix :tags, weight: 2.0
   input_matrix :topics, weight: 1.0, measure: :sorensen_coefficient # Use Sorenson over Jaccard
@@ -144,7 +143,8 @@ recommender.clean!
 
 Limiting Similarities
 ---------------------
-By default, Predictor caches all similarities for all items, with no limit. That means if you have 10,000 items, and each item is somehow related to the other, we'll have 10,000 sets each with 9,999 items. That's going to use Redis' memory quite quickly. To limit this, specify the limit_similarities_to option.
+By default, Predictor caches 128 similarities for each item. This is because this is the maximum size for the similarity sorted sets to be kept in a [memory-efficient format](http://redis.io/topics/memory-optimization). If you want to keep more similarities than that, and you don't mind using more memory, you may want to increase the similarity limit, like so:
+
 ```ruby
 class CourseRecommender
   include Predictor::Base
@@ -156,7 +156,21 @@ class CourseRecommender
 end
 ```
 
-This can really save a ton of memory. Just remember though, predictions fetched with the predictions_for call utilzes the similarity caches, so if you're using predictions_for, make sure you set the limit high enough so that intelligent predictions can be generated. If you aren't using predictions and are just using similarities, then feel free to set this to the maximum number of similarities you'd possibly want to show!
+The memory penalty can be heavy, though. In our testing, similarity caches for 1,000 objects varied in size like so:
+
+```
+limit_similarities_to(128) # 8.5 MB (this is the default)
+limit_similarities_to(129) # 22.74 MB
+limit_similarities_to(500) # 76.72 MB
+```
+
+If you decide you need to store more than 128 similarities, you may want to see the Redis documentation linked above and consider increasing `zset-max-ziplist-entries` in your configuration.
+
+Predictions fetched with the predictions_for call utilizes the similarity caches, so if you're using predictions_for, make sure you set the limit high enough so that intelligent predictions can be generated. If you aren't using predictions and are just using similarities, then feel free to set this to the maximum number of similarities you'd possibly want to show!
+
+You can also use `limit_similarities_to(nil)` to remove the limit entirely. This means if you have 10,000 items, and each item is somehow related to the other, you'll have 10,000 sets each with 9,999 items, which will run up your Redis bill quite quickly. Removing the limit is not recommended unless you're sure you know what you're doing.
+
+If at some point you decide to lower your similarity limits, you'll want to be sure to shrink the size of the sorted sets already in Redis. You can do this with `CourseRecommender.new.ensure_similarity_limit_is_obeyed!`.
 
 Upgrading from 1.0 to 2.0
 ---------------------

@@ -10,11 +10,17 @@ module Predictor::Base
     end
 
     def limit_similarities_to(val)
-      @similarity_limit = val
+      @similarity_limit_set = true
+      @similarity_limit     = val
     end
 
     def similarity_limit
-      @similarity_limit
+      @similarity_limit_set ? @similarity_limit : 128
+    end
+
+    def reset_similarity_limit!
+      @similarity_limit_set = nil
+      @similarity_limit     = nil
     end
 
     def input_matrices=(val)
