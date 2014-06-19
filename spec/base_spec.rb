@@ -287,4 +287,26 @@ describe Predictor::Base do
       Predictor.redis.keys("#{sm.redis_prefix}:*").should be_empty
     end
   end
+
+  describe "ensure_similarity_limit_is_obeyed!" do
+    it "should shorten similarities to the given limit and rewrite the zset" do
+      BaseRecommender.input_matrix(:myfirstinput)
+      sm = BaseRecommender.new
+      sm.myfirstinput.add_to_set *(['set1'] + 130.times.map{|i| "item#{i}"})
+      sm.similarities_for('item2').should be_empty
+      sm.process_items!('item2')
+      sm.similarities_for('item2').length.should == 129
+
+      redis = Predictor.redis
+      key = sm.redis_key(:similarities, 'item2')
+      redis.zcard(key).should == 129
+      redis.object(:encoding, key).should == 'skiplist' # Inefficient
+
+      BaseRecommender.limit_similarities_to(128)
+      sm.ensure_similarity_limit_is_obeyed!
+
+      redis.zcard(key).should == 128
+      redis.object(:encoding, key).should == 'ziplist' # Efficient
+    end
+  end
 end
