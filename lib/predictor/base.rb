@@ -174,7 +174,9 @@ module Predictor::Base
       items = all_items
       Predictor.redis.multi do |multi|
         items.each do |item|
-          multi.zremrangebyrank(redis_key(:similarities, item), 0, -(similarity_limit))
+          key = redis_key(:similarities, item)
+          multi.zremrangebyrank(key, 0, -(similarity_limit + 1))
+          multi.zunionstore key, [key] # Rewrite zset to take advantage of ziplist implementation.
         end
       end
     end
