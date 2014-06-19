@@ -1,6 +1,11 @@
 =======
 Predictor Changelog
 =========
+
+2.1.0 (2014-06-19)
+---------------------
+* The similarity limit now defaults to 128, instead of being unlimited. This is intended to save space in Redis. See the Readme for more information. It is strongly recommended that you run `ensure_similarity_limit_is_obeyed!` to shrink existing similarity sets.
+
 2.0.0 (2014-04-17)
 ---------------------
 **Rewrite of 1.0.0 and contains several breaking changes!**
