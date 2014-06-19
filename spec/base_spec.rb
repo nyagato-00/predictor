@@ -8,7 +8,7 @@ describe Predictor::Base do
   before(:each) do
     flush_redis!
     BaseRecommender.input_matrices = {}
-    BaseRecommender.limit_similarities_to(nil)
+    BaseRecommender.reset_similarity_limit!
   end
 
   describe "configuration" do
@@ -17,9 +17,18 @@ describe Predictor::Base do
       BaseRecommender.input_matrices.keys.should == [:myinput]
     end
 
-    it "should allow a similarity limit" do
-      BaseRecommender.limit_similarities_to(100)
-      BaseRecommender.similarity_limit.should == 100
+    it "should default the similarity_limit to 128" do
+      BaseRecommender.similarity_limit.should == 128
+    end
+
+    it "should allow the similarity limit to be configured" do
+      BaseRecommender.limit_similarities_to(500)
+      BaseRecommender.similarity_limit.should == 500
+    end
+
+    it "should allow the similarity limit to be removed" do
+      BaseRecommender.limit_similarities_to(nil)
+      BaseRecommender.similarity_limit.should == nil
     end
 
     it "should retrieve an input_matrix on a new instance" do
@@ -290,6 +299,8 @@ describe Predictor::Base do
 
   describe "ensure_similarity_limit_is_obeyed!" do
     it "should shorten similarities to the given limit and rewrite the zset" do
+      BaseRecommender.limit_similarities_to(nil)
+
       BaseRecommender.input_matrix(:myfirstinput)
       sm = BaseRecommender.new
       sm.myfirstinput.add_to_set *(['set1'] + 130.times.map{|i| "item#{i}"})
@@ -302,7 +313,7 @@ describe Predictor::Base do
       redis.zcard(key).should == 129
       redis.object(:encoding, key).should == 'skiplist' # Inefficient
 
-      BaseRecommender.limit_similarities_to(128)
+      BaseRecommender.reset_similarity_limit!
       sm.ensure_similarity_limit_is_obeyed!
 
       redis.zcard(key).should == 128
