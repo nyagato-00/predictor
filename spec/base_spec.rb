@@ -140,6 +140,8 @@ describe Predictor::Base do
       sm.tags.add_to_set('tag2', "bar", "shmoo")
       sm.tags.add_to_set('tag3', "shmoo", "nada")
       sm.process!
+
+      # Syntax #1: Tags passed as array, weights assumed to be 1.0
       predictions = sm.predictions_for('me', matrix_label: :users, boost: {tags: ['tag3']})
       predictions.should == ["shmoo", "nada", "other"]
       predictions = sm.predictions_for(item_set: ["foo", "bar", "fnord"], boost: {tags: ['tag3']})
@@ -147,6 +149,16 @@ describe Predictor::Base do
       predictions = sm.predictions_for('me', matrix_label: :users, offset: 1, limit: 1, boost: {tags: ['tag3']})
       predictions.should == ["nada"]
       predictions = sm.predictions_for('me', matrix_label: :users, offset: 1, boost: {tags: ['tag3']})
+      predictions.should == ["nada", "other"]
+
+      # Syntax #2: Weights explicitly set.
+      predictions = sm.predictions_for('me', matrix_label: :users, boost: {tags: {values: ['tag3'], weight: 1.0}})
+      predictions.should == ["shmoo", "nada", "other"]
+      predictions = sm.predictions_for(item_set: ["foo", "bar", "fnord"], boost: {tags: {values: ['tag3'], weight: 1.0}})
+      predictions.should == ["shmoo", "nada", "other"]
+      predictions = sm.predictions_for('me', matrix_label: :users, offset: 1, limit: 1, boost: {tags: {values: ['tag3'], weight: 1.0}})
+      predictions.should == ["nada"]
+      predictions = sm.predictions_for('me', matrix_label: :users, offset: 1, boost: {tags: {values: ['tag3'], weight: 1.0}})
       predictions.should == ["nada", "other"]
     end
   end
