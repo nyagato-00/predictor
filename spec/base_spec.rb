@@ -8,6 +8,7 @@ describe Predictor::Base do
   before(:each) do
     flush_redis!
     BaseRecommender.input_matrices = {}
+    BaseRecommender.associative_recommendations = {}
     BaseRecommender.reset_similarity_limit!
   end
 
@@ -49,6 +50,15 @@ describe Predictor::Base do
       BaseRecommender.input_matrix(:myinput)
       sm = BaseRecommender.new
       sm.myinput.should be_a(Predictor::InputMatrix)
+    end
+
+    it "should add an associative recommendation" do
+      BaseRecommender.input_matrix :users
+      BaseRecommender.recommend_for :users, recommender: "UserRecommender", via: {tags: 2.0, topics: 1.0}
+
+      h = BaseRecommender.associative_recommendations
+      h.keys.should == [:users]
+      h[:users].should == {recommender: "UserRecommender", via: {tags: 2.0, topics: 1.0}}
     end
   end
 
@@ -128,39 +138,70 @@ describe Predictor::Base do
       predictions.should == ["other", "nada"]
     end
 
-    it "accepts a :boost option" do
-      BaseRecommender.input_matrix(:users, weight: 4.0)
-      BaseRecommender.input_matrix(:tags, weight: 1.0)
-      sm = BaseRecommender.new
-      sm.users.add_to_set('me', "foo", "bar", "fnord")
-      sm.users.add_to_set('not_me', "foo", "shmoo")
-      sm.users.add_to_set('another', "fnord", "other")
-      sm.users.add_to_set('another', "nada")
-      sm.tags.add_to_set('tag1', "foo", "fnord", "shmoo")
-      sm.tags.add_to_set('tag2', "bar", "shmoo")
-      sm.tags.add_to_set('tag3', "shmoo", "nada")
-      sm.process!
+    # it "should respect the presence of recommend_for settings" do
+    #   class ::UserRecommender
+    #     include Predictor::Base
 
-      # Syntax #1: Tags passed as array, weights assumed to be 1.0
-      predictions = sm.predictions_for('me', matrix_label: :users, boost: {tags: ['tag3']})
-      predictions.should == ["shmoo", "nada", "other"]
-      predictions = sm.predictions_for(item_set: ["foo", "bar", "fnord"], boost: {tags: ['tag3']})
-      predictions.should == ["shmoo", "nada", "other"]
-      predictions = sm.predictions_for('me', matrix_label: :users, offset: 1, limit: 1, boost: {tags: ['tag3']})
-      predictions.should == ["nada"]
-      predictions = sm.predictions_for('me', matrix_label: :users, offset: 1, boost: {tags: ['tag3']})
-      predictions.should == ["nada", "other"]
+    #     input_matrix :tags,   weight: 2.0
+    #     input_matrix :topics, weight: 1.0
+    #   end
 
-      # Syntax #2: Weights explicitly set.
-      predictions = sm.predictions_for('me', matrix_label: :users, boost: {tags: {values: ['tag3'], weight: 1.0}})
-      predictions.should == ["shmoo", "nada", "other"]
-      predictions = sm.predictions_for(item_set: ["foo", "bar", "fnord"], boost: {tags: {values: ['tag3'], weight: 1.0}})
-      predictions.should == ["shmoo", "nada", "other"]
-      predictions = sm.predictions_for('me', matrix_label: :users, offset: 1, limit: 1, boost: {tags: {values: ['tag3'], weight: 1.0}})
-      predictions.should == ["nada"]
-      predictions = sm.predictions_for('me', matrix_label: :users, offset: 1, boost: {tags: {values: ['tag3'], weight: 1.0}})
-      predictions.should == ["nada", "other"]
-    end
+    #   BaseRecommender.input_matrix(:users,  weight: 4.0)
+    #   BaseRecommender.input_matrix(:topics, weight: 3.0)
+    #   BaseRecommender.input_matrix(:tags,   weight: 1.0)
+
+    #   ur = UserRecommender.new
+    #   ur.tags.add_to_set('tag1', 'user1')
+    #   ur.tags.add_to_set('tag2', 'user2')
+    #   ur.tags.add_to_set('tag3', 'user2', 'user3')
+    #   ur.topics.add_to_set('topic1', 'user1')
+    #   ur.topics.add_to_set('topic2', 'user2')
+    #   ur.topics.add_to_set('topic3', 'user2', 'user3')
+    #   ur.process!
+
+    #   sm = BaseRecommender.new
+    #   sm.users.add_to_set('user1', 'base1')
+    #   sm.users.add_to_set('user2', 'base1', 'base2', 'base3')
+    #   sm.users.add_to_set('user3', 'base1', 'base2', 'base4')
+
+    #   sm.tags.add_to_set('tag1', 'base3')
+    #   sm.tags.add_to_set('tag2', 'base1', 'base2')
+    #   sm.tags.add_to_set('tag3', 'base1', 'base4')
+
+    #   sm.topics.add_to_set('topic1', 'base4')
+    #   sm.topics.add_to_set('topic2', 'base1', 'base2')
+    #   sm.topics.add_to_set('topic3', 'base1', 'base3')
+    #   sm.process!
+
+    #   binding.pry
+    #   0
+
+    #   # First, without weights.
+    #   predictions = sm.predictions_for('user1', matrix_label: :users)
+    #   predictions.should == ["base2", "base3", "base4"]
+    #   predictions = sm.predictions_for('me', matrix_label: :users, offset: 1, limit: 1)
+    #   # predictions.should == ["nada"]
+    #   predictions = sm.predictions_for('me', matrix_label: :users, offset: 1)
+    #   # predictions.should == ["nada", "other"]
+
+    #   # Add weights to prefer tags.
+    #   BaseRecommender.recommend_for :users, recommender: "UserRecommender", via: {tags: 2.0, topics: 1.0}
+    #   predictions = sm.predictions_for('user1', matrix_label: :users)
+    #   predictions.should == ["base3", "base4", "base2"]
+    #   predictions = sm.predictions_for('me', matrix_label: :users, offset: 1, limit: 1)
+    #   # predictions.should == ["nada"]
+    #   predictions = sm.predictions_for('me', matrix_label: :users, offset: 1)
+    #   # predictions.should == ["nada", "other"]
+
+    #   # Switch weights to prefer topics.
+    #   BaseRecommender.recommend_for :users, recommender: "UserRecommender", via: {tags: 1.0, topics: 2.0}
+    #   predictions = sm.predictions_for('user1', matrix_label: :users)
+    #   predictions.should == ["base4", "base3", "base2"]
+    #   predictions = sm.predictions_for('me', matrix_label: :users, offset: 1, limit: 1)
+    #   # predictions.should == ["nada"]
+    #   predictions = sm.predictions_for('me', matrix_label: :users, offset: 1)
+    #   # predictions.should == ["nada", "other"]
+    # end
   end
 
   describe "similarities_for" do

@@ -125,6 +125,42 @@ recommender.predictions_for("user-1", matrix_label: :users, offset: 10, limit: 1
 recommender.predictions_for("user-1", matrix_label: :users, with_scores: true, exclusion_set: ["course-2"])
 ```
 
+Associative Recommendations
+---------------------
+What if you want to recommend courses to users based not only on what courses they've taken, but on other attributes of theirs that are relevant to those courses? You can do that with associative recommendations:
+
+```ruby
+class UserRecommender
+  include Predictor::Base
+
+  # Users are related to each other by the topics and tags they're interested in.
+  input_matrix :tags,   weight: 1.0
+  input_matrix :topics, weight: 2.0
+end
+
+class CourseRecommender
+  include Predictor::Base
+
+  # Courses are compared to one another by the users taking them and their tags and topics.
+  input_matrix :users,  weight: 3.0
+  input_matrix :tags,   weight: 2.0
+  input_matrix :topics, weight: 2.0
+
+  # When we recommend courses to users, we want to prioritize courses that
+  # have the same tags and topics that users have specified, with weights of
+  # 2.0 and 1.0, respectively.
+  recommend_for :users, recommender: "UserRecommender", via: {tags: 2.0, topics: 1.0}
+end
+
+recommender = CourseRecommender.new
+
+# Courses with the topics and tags that Billy has specified will now be
+# prioritized when the matrix_label is specified.
+recommender.predictions_for("Billy", matrix_label: :users)
+```
+
+Unlike input_matrix weights, you don't need to reindex when changing these weights, so feel free to play with them and see how they affect your results.
+
 Deleting Items
 ---------------------
 If your data is deleted from your persistent storage, you certainly don't want to recommend it to a user. To ensure that doesn't happen, simply call delete_from_matrix! with the individual matrix or delete_item! if the item is completely gone:

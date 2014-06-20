@@ -9,6 +9,11 @@ module Predictor::Base
       @matrices[key] = opts
     end
 
+    def recommend_for(key, opts)
+      @associative_recommendations ||= {}
+      @associative_recommendations[key] = opts
+    end
+
     def limit_similarities_to(val)
       @similarity_limit_set = true
       @similarity_limit     = val
@@ -30,6 +35,8 @@ module Predictor::Base
     def input_matrices
       @matrices
     end
+
+    attr_accessor :associative_recommendations
   end
 
   def input_matrices
@@ -88,12 +95,16 @@ module Predictor::Base
     keys.empty? ? [] : (Predictor.redis.sunion(keys) - [item.to_s])
   end
 
-  def predictions_for(set=nil, item_set: nil, matrix_label: nil, with_scores: false, offset: 0, limit: -1, exclusion_set: [], boost: {})
+  def predictions_for(set=nil, item_set: nil, matrix_label: nil, with_scores: false, offset: 0, limit: -1, exclusion_set: [])
     fail "item_set or matrix_label and set is required" unless item_set || (matrix_label && set)
+
+    # binding.pry
+    # 0
 
     if matrix_label
       matrix = input_matrices[matrix_label]
       item_set = Predictor.redis.smembers(matrix.redis_key(:items, set))
+      association = self.class.associative_recommendations[matrix_label]
     end
 
     item_keys = []
@@ -106,27 +117,35 @@ module Predictor::Base
 
     return [] if item_keys.empty?
 
-    boost.each do |matrix_label, values|
-      m = input_matrices[matrix_label]
+    # if association
+    #   recommender = Object.const_get(association[:recommender]).new
 
-      # Passing plain sets to zunionstore is undocumented, but tested and supported:
-      # https://github.com/antirez/redis/blob/2.8.11/tests/unit/type/zset.tcl#L481-L489
+    #   association[:via].each do |key, weight|
+    #     k = recommender.redis_key(:items, key)
+    #   end
+    # end
 
-      case values
-      when Hash
-        values[:values].each do |value|
-          item_keys << m.redis_key(:items, value)
-          weights   << values[:weight]
-        end
-      when Array
-        values.each do |value|
-          item_keys << m.redis_key(:items, value)
-          weights   << 1.0
-        end
-      else
-        raise "Bad value for boost: #{boost.inspect}"
-      end
-    end
+    # boost.each do |matrix_label, values|
+    #   m = input_matrices[matrix_label]
+
+    #   # Passing plain sets to zunionstore is undocumented, but tested and supported:
+    #   # https://github.com/antirez/redis/blob/2.8.11/tests/unit/type/zset.tcl#L481-L489
+
+    #   case values
+    #   when Hash
+    #     values[:values].each do |value|
+    #       item_keys << m.redis_key(:items, value)
+    #       weights   << values[:weight]
+    #     end
+    #   when Array
+    #     values.each do |value|
+    #       item_keys << m.redis_key(:items, value)
+    #       weights   << 1.0
+    #     end
+    #   else
+    #     raise "Bad value for boost: #{boost.inspect}"
+    #   end
+    # end
 
     predictions = nil
 
