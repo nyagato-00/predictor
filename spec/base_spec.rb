@@ -5,11 +5,17 @@ describe Predictor::Base do
     include Predictor::Base
   end
 
+  class UserRecommender
+    include Predictor::Base
+  end
+
   before(:each) do
     flush_redis!
     BaseRecommender.input_matrices = {}
     BaseRecommender.associative_recommendations = {}
     BaseRecommender.reset_similarity_limit!
+    UserRecommender.input_matrices = {}
+    UserRecommender.reset_similarity_limit!
   end
 
   describe "configuration" do
@@ -62,6 +68,13 @@ describe Predictor::Base do
     end
   end
 
+  describe "redis_key" do
+    it "should vary based on the class name" do
+      BaseRecommender.new.redis_key.should == 'predictor-test:BaseRecommender'
+      UserRecommender.new.redis_key.should == 'predictor-test:UserRecommender'
+    end
+  end
+
   describe "all_items" do
     it "returns all items across all matrices" do
       BaseRecommender.input_matrix(:anotherinput)
@@ -71,6 +84,21 @@ describe Predictor::Base do
       sm.add_to_matrix(:yetanotherinput, 'b', "fnord", "shmoo", "bar")
       sm.all_items.should include('foo', 'bar', 'fnord', 'shmoo')
       sm.all_items.length.should == 4
+    end
+
+    it "doesn't return items from other recommenders" do
+      BaseRecommender.input_matrix(:anotherinput)
+      BaseRecommender.input_matrix(:yetanotherinput)
+      UserRecommender.input_matrix(:anotherinput)
+      UserRecommender.input_matrix(:yetanotherinput)
+      sm = BaseRecommender.new
+      sm.add_to_matrix(:anotherinput, 'a', "foo", "bar")
+      sm.add_to_matrix(:yetanotherinput, 'b', "fnord", "shmoo", "bar")
+      sm.all_items.should include('foo', 'bar', 'fnord', 'shmoo')
+      sm.all_items.length.should == 4
+
+      ur = UserRecommender.new
+      ur.all_items.should == []
     end
   end
 

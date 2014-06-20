@@ -9,11 +9,9 @@ def flush_redis!
 end
 
 module Predictor::Base
-
-  def redis_prefix
+  def predictor_redis_prefix
     "predictor-test"
   end
-
 end
 
 class TestRecommender

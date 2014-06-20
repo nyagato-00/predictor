@@ -46,8 +46,12 @@ module Predictor::Base
     }]
   end
 
+  def predictor_redis_prefix
+    "predictor" # Overridden in testing.
+  end
+
   def redis_prefix
-    "predictor"
+    "#{predictor_redis_prefix}:#{self.class.to_s}"
   end
 
   def similarity_limit
