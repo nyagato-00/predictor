@@ -109,6 +109,9 @@ module Predictor::Base
     boost.each do |matrix_label, values|
       m = input_matrices[matrix_label]
 
+      # Passing plain sets to zunionstore is undocumented, but tested and supported:
+      # https://github.com/antirez/redis/blob/2.8.11/tests/unit/type/zset.tcl#L481-L489
+
       case values
       when Hash
         values[:values].each do |value|
@@ -128,9 +131,6 @@ module Predictor::Base
     predictions = nil
 
     Predictor.redis.multi do |multi|
-      # Passing plain sets to zunionstore is undocumented, but tested and supported:
-      # https://github.com/antirez/redis/blob/2.8.11/tests/unit/type/zset.tcl#L481-L489
-
       multi.zunionstore 'temp', item_keys
       multi.zrem 'temp', item_set
       multi.zrem 'temp', exclusion_set if exclusion_set.length > 0
