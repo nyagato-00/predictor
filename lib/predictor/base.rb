@@ -88,7 +88,7 @@ module Predictor::Base
     keys.empty? ? [] : (Predictor.redis.sunion(keys) - [item.to_s])
   end
 
-  def predictions_for(set=nil, item_set: nil, matrix_label: nil, with_scores: false, offset: 0, limit: -1, exclusion_set: [])
+  def predictions_for(set=nil, item_set: nil, matrix_label: nil, with_scores: false, offset: 0, limit: -1, exclusion_set: [], boost: {})
     fail "item_set or matrix_label and set is required" unless item_set || (matrix_label && set)
 
     if matrix_label
@@ -99,7 +99,17 @@ module Predictor::Base
     item_keys = item_set.map { |item| redis_key(:similarities, item) }
     return [] if item_keys.empty?
     predictions = nil
+
     Predictor.redis.multi do |multi|
+      # Passing plain sets to zunionstore is undocumented, but supported and tested:
+      # https://github.com/antirez/redis/blob/2.8.11/tests/unit/type/zset.tcl#L481-L489
+
+      boost.each do |matrix_label, values|
+        m = input_matrices[matrix_label]
+        keys = values.map { |v| m.redis_key(:items, v) }
+        item_keys += keys
+      end
+
       multi.zunionstore 'temp', item_keys
       multi.zrem 'temp', item_set
       multi.zrem 'temp', exclusion_set if exclusion_set.length > 0

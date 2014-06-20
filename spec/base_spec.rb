@@ -127,6 +127,28 @@ describe Predictor::Base do
       predictions = sm.predictions_for('me', matrix_label: :users, offset: 1)
       predictions.should == ["other", "nada"]
     end
+
+    it "accepts a :boost option" do
+      BaseRecommender.input_matrix(:users, weight: 4.0)
+      BaseRecommender.input_matrix(:tags, weight: 1.0)
+      sm = BaseRecommender.new
+      sm.users.add_to_set('me', "foo", "bar", "fnord")
+      sm.users.add_to_set('not_me', "foo", "shmoo")
+      sm.users.add_to_set('another', "fnord", "other")
+      sm.users.add_to_set('another', "nada")
+      sm.tags.add_to_set('tag1', "foo", "fnord", "shmoo")
+      sm.tags.add_to_set('tag2', "bar", "shmoo")
+      sm.tags.add_to_set('tag3', "shmoo", "nada")
+      sm.process!
+      predictions = sm.predictions_for('me', matrix_label: :users, boost: {tags: ['tag3']})
+      predictions.should == ["shmoo", "nada", "other"]
+      predictions = sm.predictions_for(item_set: ["foo", "bar", "fnord"], boost: {tags: ['tag3']})
+      predictions.should == ["shmoo", "nada", "other"]
+      predictions = sm.predictions_for('me', matrix_label: :users, offset: 1, limit: 1, boost: {tags: ['tag3']})
+      predictions.should == ["nada"]
+      predictions = sm.predictions_for('me', matrix_label: :users, offset: 1, boost: {tags: ['tag3']})
+      predictions.should == ["nada", "other"]
+    end
   end
 
   describe "similarities_for" do
