@@ -102,9 +102,6 @@ module Predictor::Base
   def predictions_for(set=nil, item_set: nil, matrix_label: nil, with_scores: false, offset: 0, limit: -1, exclusion_set: [])
     fail "item_set or matrix_label and set is required" unless item_set || (matrix_label && set)
 
-    # binding.pry
-    # 0
-
     if matrix_label
       matrix = input_matrices[matrix_label]
       item_set = Predictor.redis.smembers(matrix.redis_key(:items, set))
@@ -121,40 +118,24 @@ module Predictor::Base
 
     return [] if item_keys.empty?
 
-    # if association
-    #   recommender = Object.const_get(association[:recommender]).new
+    if association
+      recommender = Object.const_get(association[:recommender]).new
 
-    #   association[:via].each do |key, weight|
-    #     k = recommender.redis_key(:items, key)
-    #   end
-    # end
+      association[:via].each do |key, weight|
+        m = recommender.input_matrices[key]
+        values = Predictor.redis.smembers(m.redis_key(:sets, set))
 
-    # boost.each do |matrix_label, values|
-    #   m = input_matrices[matrix_label]
-
-    #   # Passing plain sets to zunionstore is undocumented, but tested and supported:
-    #   # https://github.com/antirez/redis/blob/2.8.11/tests/unit/type/zset.tcl#L481-L489
-
-    #   case values
-    #   when Hash
-    #     values[:values].each do |value|
-    #       item_keys << m.redis_key(:items, value)
-    #       weights   << values[:weight]
-    #     end
-    #   when Array
-    #     values.each do |value|
-    #       item_keys << m.redis_key(:items, value)
-    #       weights   << 1.0
-    #     end
-    #   else
-    #     raise "Bad value for boost: #{boost.inspect}"
-    #   end
-    # end
+        values.each do |value|
+          item_keys << redis_key(key, :items, value)
+          weights   << weight
+        end
+      end
+    end
 
     predictions = nil
 
     Predictor.redis.multi do |multi|
-      multi.zunionstore 'temp', item_keys
+      multi.zunionstore 'temp', item_keys, weights: weights
       multi.zrem 'temp', item_set
       multi.zrem 'temp', exclusion_set if exclusion_set.length > 0
       predictions = multi.zrevrange 'temp', offset, limit == -1 ? limit : offset + (limit - 1), with_scores: with_scores
