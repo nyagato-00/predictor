@@ -251,6 +251,39 @@ describe Predictor::Base do
       predictions = sm.predictions_for('me', matrix_label: :users, offset: 1, boost: {tags: {values: ['tag3'], weight: 1.0}})
       predictions.should == ["nada", "other"]
     end
+
+    it "accepts a :boost option, even with an empty item set" do
+      BaseRecommender.input_matrix(:users, weight: 4.0)
+      BaseRecommender.input_matrix(:tags, weight: 1.0)
+      sm = BaseRecommender.new
+      sm.users.add_to_set('not_me', "foo", "shmoo")
+      sm.users.add_to_set('another', "fnord", "other")
+      sm.users.add_to_set('another', "nada")
+      sm.tags.add_to_set('tag1', "foo", "fnord", "shmoo")
+      sm.tags.add_to_set('tag2', "bar", "shmoo")
+      sm.tags.add_to_set('tag3', "shmoo", "nada")
+      sm.process!
+
+      # Syntax #1: Tags passed as array, weights assumed to be 1.0
+      predictions = sm.predictions_for('me', matrix_label: :users, boost: {tags: ['tag3']})
+      predictions.should == ["shmoo", "nada"]
+      predictions = sm.predictions_for(item_set: [], boost: {tags: ['tag3']})
+      predictions.should == ["shmoo", "nada"]
+      predictions = sm.predictions_for('me', matrix_label: :users, offset: 1, limit: 1, boost: {tags: ['tag3']})
+      predictions.should == ["nada"]
+      predictions = sm.predictions_for('me', matrix_label: :users, offset: 1, boost: {tags: ['tag3']})
+      predictions.should == ["nada"]
+
+      # Syntax #2: Weights explicitly set.
+      predictions = sm.predictions_for('me', matrix_label: :users, boost: {tags: {values: ['tag3'], weight: 1.0}})
+      predictions.should == ["shmoo", "nada"]
+      predictions = sm.predictions_for(item_set: [], boost: {tags: {values: ['tag3'], weight: 1.0}})
+      predictions.should == ["shmoo", "nada"]
+      predictions = sm.predictions_for('me', matrix_label: :users, offset: 1, limit: 1, boost: {tags: {values: ['tag3'], weight: 1.0}})
+      predictions.should == ["nada"]
+      predictions = sm.predictions_for('me', matrix_label: :users, offset: 1, boost: {tags: {values: ['tag3'], weight: 1.0}})
+      predictions.should == ["nada"]
+    end
   end
 
   describe "similarities_for" do

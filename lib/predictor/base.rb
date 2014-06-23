@@ -120,8 +120,6 @@ module Predictor::Base
       weights   << 1.0
     end
 
-    return [] if item_keys.empty?
-
     boost.each do |matrix_label, values|
       m = input_matrices[matrix_label]
 
@@ -144,11 +142,13 @@ module Predictor::Base
       end
     end
 
+    return [] if item_keys.empty?
+
     predictions = nil
 
     Predictor.redis.multi do |multi|
       multi.zunionstore 'temp', item_keys
-      multi.zrem 'temp', item_set
+      multi.zrem 'temp', item_set if item_set.any?
       multi.zrem 'temp', exclusion_set if exclusion_set.length > 0
       predictions = multi.zrevrange 'temp', offset, limit == -1 ? limit : offset + (limit - 1), with_scores: with_scores
       multi.del 'temp'
