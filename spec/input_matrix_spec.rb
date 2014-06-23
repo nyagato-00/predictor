@@ -15,30 +15,59 @@ describe Predictor::InputMatrix do
     flush_redis!
   end
 
-  it "should build the correct keys" do
-    @matrix.redis_key.should == "predictor-test:BaseRecommender:mymatrix"
-    @matrix.redis_key(:another).should == "predictor-test:BaseRecommender:mymatrix:another"
-    @matrix.redis_key(:another, :key).should == "predictor-test:BaseRecommender:mymatrix:another:key"
-    @matrix.redis_key(:another, [:set, :of, :keys]).should == "predictor-test:BaseRecommender:mymatrix:another:set:of:keys"
+  describe "redis_key" do
+    it "should respect the global namespace configuration" do
+      @matrix.redis_key.should == "predictor-test:BaseRecommender:mymatrix"
+      @matrix.redis_key(:another).should == "predictor-test:BaseRecommender:mymatrix:another"
+      @matrix.redis_key(:another, :key).should == "predictor-test:BaseRecommender:mymatrix:another:key"
+      @matrix.redis_key(:another, [:set, :of, :keys]).should == "predictor-test:BaseRecommender:mymatrix:another:set:of:keys"
 
-    i = 0
-    Predictor.redis_prefix = proc { i += 1 }
-    @matrix.redis_key.should == "1:BaseRecommender:mymatrix"
-    @matrix.redis_key(:another).should == "2:BaseRecommender:mymatrix:another"
-    @matrix.redis_key(:another, :key).should == "3:BaseRecommender:mymatrix:another:key"
-    @matrix.redis_key(:another, [:set, :of, :keys]).should == "4:BaseRecommender:mymatrix:another:set:of:keys"
+      i = 0
+      Predictor.redis_prefix { i += 1 }
+      @matrix.redis_key.should == "1:BaseRecommender:mymatrix"
+      @matrix.redis_key(:another).should == "2:BaseRecommender:mymatrix:another"
+      @matrix.redis_key(:another, :key).should == "3:BaseRecommender:mymatrix:another:key"
+      @matrix.redis_key(:another, [:set, :of, :keys]).should == "4:BaseRecommender:mymatrix:another:set:of:keys"
 
-    Predictor.redis_prefix = nil
-    @matrix.redis_key.should == "predictor:BaseRecommender:mymatrix"
-    @matrix.redis_key(:another).should == "predictor:BaseRecommender:mymatrix:another"
-    @matrix.redis_key(:another, :key).should == "predictor:BaseRecommender:mymatrix:another:key"
-    @matrix.redis_key(:another, [:set, :of, :keys]).should == "predictor:BaseRecommender:mymatrix:another:set:of:keys"
+      Predictor.redis_prefix(nil)
+      @matrix.redis_key.should == "predictor:BaseRecommender:mymatrix"
+      @matrix.redis_key(:another).should == "predictor:BaseRecommender:mymatrix:another"
+      @matrix.redis_key(:another, :key).should == "predictor:BaseRecommender:mymatrix:another:key"
+      @matrix.redis_key(:another, [:set, :of, :keys]).should == "predictor:BaseRecommender:mymatrix:another:set:of:keys"
 
-    Predictor.redis_prefix = 'predictor-test'
-    @matrix.redis_key.should == "predictor-test:BaseRecommender:mymatrix"
-    @matrix.redis_key(:another).should == "predictor-test:BaseRecommender:mymatrix:another"
-    @matrix.redis_key(:another, :key).should == "predictor-test:BaseRecommender:mymatrix:another:key"
-    @matrix.redis_key(:another, [:set, :of, :keys]).should == "predictor-test:BaseRecommender:mymatrix:another:set:of:keys"
+      Predictor.redis_prefix('predictor-test')
+      @matrix.redis_key.should == "predictor-test:BaseRecommender:mymatrix"
+      @matrix.redis_key(:another).should == "predictor-test:BaseRecommender:mymatrix:another"
+      @matrix.redis_key(:another, :key).should == "predictor-test:BaseRecommender:mymatrix:another:key"
+      @matrix.redis_key(:another, [:set, :of, :keys]).should == "predictor-test:BaseRecommender:mymatrix:another:set:of:keys"
+    end
+
+    it "should respect the class-level configuration" do
+      i = 0
+      BaseRecommender.redis_prefix { i += 1 }
+      @matrix.redis_key.should == "predictor-test:1:mymatrix"
+      @matrix.redis_key(:another).should == "predictor-test:2:mymatrix:another"
+      @matrix.redis_key(:another, :key).should == "predictor-test:3:mymatrix:another:key"
+      @matrix.redis_key(:another, [:set, :of, :keys]).should == "predictor-test:4:mymatrix:another:set:of:keys"
+
+      BaseRecommender.redis_prefix([nil])
+      @matrix.redis_key.should == "predictor-test:mymatrix"
+      @matrix.redis_key(:another).should == "predictor-test:mymatrix:another"
+      @matrix.redis_key(:another, :key).should == "predictor-test:mymatrix:another:key"
+      @matrix.redis_key(:another, [:set, :of, :keys]).should == "predictor-test:mymatrix:another:set:of:keys"
+
+      BaseRecommender.redis_prefix(['a', 'b'])
+      @matrix.redis_key.should == "predictor-test:a:b:mymatrix"
+      @matrix.redis_key(:another).should == "predictor-test:a:b:mymatrix:another"
+      @matrix.redis_key(:another, :key).should == "predictor-test:a:b:mymatrix:another:key"
+      @matrix.redis_key(:another, [:set, :of, :keys]).should == "predictor-test:a:b:mymatrix:another:set:of:keys"
+
+      BaseRecommender.redis_prefix(nil)
+      @matrix.redis_key.should == "predictor-test:BaseRecommender:mymatrix"
+      @matrix.redis_key(:another).should == "predictor-test:BaseRecommender:mymatrix:another"
+      @matrix.redis_key(:another, :key).should == "predictor-test:BaseRecommender:mymatrix:another:key"
+      @matrix.redis_key(:another, [:set, :of, :keys]).should == "predictor-test:BaseRecommender:mymatrix:another:set:of:keys"
+    end
   end
 
   describe "weight" do

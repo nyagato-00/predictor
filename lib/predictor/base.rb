@@ -37,6 +37,22 @@ module Predictor::Base
     end
 
     attr_accessor :associative_recommendations
+
+    def redis_prefix(prefix = nil, &block)
+      @redis_prefix = block_given? ? block : prefix
+    end
+
+    def get_redis_prefix
+      if @redis_prefix
+        if @redis_prefix.respond_to?(:call)
+          @redis_prefix.call
+        else
+          @redis_prefix
+        end
+      else
+        to_s
+      end
+    end
   end
 
   def input_matrices
@@ -47,7 +63,7 @@ module Predictor::Base
   end
 
   def redis_prefix
-    "#{Predictor.redis_prefix}:#{self.class.to_s}"
+    [Predictor.get_redis_prefix, self.class.get_redis_prefix]
   end
 
   def similarity_limit
@@ -201,7 +217,7 @@ module Predictor::Base
   end
 
   def clean!
-    keys = Predictor.redis.keys("#{self.redis_prefix}:*")
+    keys = Predictor.redis.keys(redis_key('*'))
     unless keys.empty?
       Predictor.redis.del(keys)
     end

@@ -8,7 +8,7 @@ def flush_redis!
   end
 end
 
-Predictor.redis_prefix = "predictor-test"
+Predictor.redis_prefix "predictor-test"
 
 class BaseRecommender
   include Predictor::Base

@@ -2,6 +2,17 @@
 Predictor Changelog
 =========
 
+2.2.0 (Unreleased)
+---------------------
+* The namespace used for keys in Redis is now configurable on a global or per-class basis. See the readme for more information. If you were overriding the redis_prefix instance method before, it is recommended that you use the new redis_prefix class method instead.
+* Data stored in Redis is now namespaced by the class name of the recommender it is stored by. This change ensures that different recommenders with input matrices of the same name don't overwrite each others' data. After upgrading you'll need to either reindex your data in Redis or configure Predictor to use the naming system you were using before. If you were using the defaults before and you're not worried about matrix name collisions, you can mimic the old behavior with:
+```ruby
+  class MyRecommender
+    include Predictor::Base
+    redis_prefix [nil]
+  end
+```
+
 2.1.0 (2014-06-19)
 ---------------------
 * The similarity limit now defaults to 128, instead of being unlimited. This is intended to save space in Redis. See the Readme for more information. It is strongly recommended that you run `ensure_similarity_limit_is_obeyed!` to shrink existing similarity sets.
