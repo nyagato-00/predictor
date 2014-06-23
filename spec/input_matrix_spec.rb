@@ -22,19 +22,19 @@ describe Predictor::InputMatrix do
     @matrix.redis_key(:another, [:set, :of, :keys]).should == "predictor-test:BaseRecommender:mymatrix:another:set:of:keys"
 
     i = 0
-    Predictor.redis_prefix = proc { i += 1 }
+    Predictor.redis_prefix { i += 1 }
     @matrix.redis_key.should == "1:BaseRecommender:mymatrix"
     @matrix.redis_key(:another).should == "2:BaseRecommender:mymatrix:another"
     @matrix.redis_key(:another, :key).should == "3:BaseRecommender:mymatrix:another:key"
     @matrix.redis_key(:another, [:set, :of, :keys]).should == "4:BaseRecommender:mymatrix:another:set:of:keys"
 
-    Predictor.redis_prefix = nil
+    Predictor.redis_prefix(nil)
     @matrix.redis_key.should == "predictor:BaseRecommender:mymatrix"
     @matrix.redis_key(:another).should == "predictor:BaseRecommender:mymatrix:another"
     @matrix.redis_key(:another, :key).should == "predictor:BaseRecommender:mymatrix:another:key"
     @matrix.redis_key(:another, [:set, :of, :keys]).should == "predictor:BaseRecommender:mymatrix:another:set:of:keys"
 
-    Predictor.redis_prefix = 'predictor-test'
+    Predictor.redis_prefix('predictor-test')
     @matrix.redis_key.should == "predictor-test:BaseRecommender:mymatrix"
     @matrix.redis_key(:another).should == "predictor-test:BaseRecommender:mymatrix:another"
     @matrix.redis_key(:another, :key).should == "predictor-test:BaseRecommender:mymatrix:another:key"

@@ -11,11 +11,11 @@ module Predictor
     raise "redis not configured! - Predictor.redis = Redis.new"
   end
 
-  def self.redis_prefix=(redis_prefix)
-    @@redis_prefix = redis_prefix
+  def self.redis_prefix(prefix = nil, &block)
+    @@redis_prefix = block_given? ? block : prefix
   end
 
-  def self.redis_prefix
+  def self.get_redis_prefix
     if @@redis_prefix
       if @@redis_prefix.respond_to?(:call)
         @@redis_prefix.call
