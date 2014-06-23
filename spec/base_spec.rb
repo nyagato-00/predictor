@@ -1,14 +1,6 @@
 require 'spec_helper'
 
 describe Predictor::Base do
-  class BaseRecommender
-    include Predictor::Base
-  end
-
-  class UserRecommender
-    include Predictor::Base
-  end
-
   before(:each) do
     flush_redis!
     BaseRecommender.input_matrices = {}
@@ -73,6 +65,41 @@ describe Predictor::Base do
     it "should vary based on the class name" do
       BaseRecommender.new.redis_key.should == 'predictor-test:BaseRecommender'
       UserRecommender.new.redis_key.should == 'predictor-test:UserRecommender'
+    end
+  end
+
+  describe "redis_key" do
+    it "should vary based on the class name" do
+      BaseRecommender.new.redis_key.should == 'predictor-test:BaseRecommender'
+      UserRecommender.new.redis_key.should == 'predictor-test:UserRecommender'
+    end
+
+    it "should respect the Predictor configuration settings" do
+      br = BaseRecommender.new
+
+      br.redis_key.should == "predictor-test:BaseRecommender"
+      br.redis_key(:another).should == "predictor-test:BaseRecommender:another"
+      br.redis_key(:another, :key).should == "predictor-test:BaseRecommender:another:key"
+      br.redis_key(:another, [:set, :of, :keys]).should == "predictor-test:BaseRecommender:another:set:of:keys"
+
+      i = 0
+      Predictor.redis_prefix = proc { i += 1 }
+      br.redis_key.should == "1:BaseRecommender"
+      br.redis_key(:another).should == "2:BaseRecommender:another"
+      br.redis_key(:another, :key).should == "3:BaseRecommender:another:key"
+      br.redis_key(:another, [:set, :of, :keys]).should == "4:BaseRecommender:another:set:of:keys"
+
+      Predictor.redis_prefix = nil
+      br.redis_key.should == "predictor:BaseRecommender"
+      br.redis_key(:another).should == "predictor:BaseRecommender:another"
+      br.redis_key(:another, :key).should == "predictor:BaseRecommender:another:key"
+      br.redis_key(:another, [:set, :of, :keys]).should == "predictor:BaseRecommender:another:set:of:keys"
+
+      Predictor.redis_prefix = 'predictor-test'
+      br.redis_key.should == "predictor-test:BaseRecommender"
+      br.redis_key(:another).should == "predictor-test:BaseRecommender:another"
+      br.redis_key(:another, :key).should == "predictor-test:BaseRecommender:another:key"
+      br.redis_key(:another, [:set, :of, :keys]).should == "predictor-test:BaseRecommender:another:set:of:keys"
     end
   end
 
