@@ -9,11 +9,6 @@ module Predictor::Base
       @matrices[key] = opts
     end
 
-    def recommend_for(key, opts)
-      @associative_recommendations ||= {}
-      @associative_recommendations[key] = opts
-    end
-
     def limit_similarities_to(val)
       @similarity_limit_set = true
       @similarity_limit     = val
@@ -35,8 +30,6 @@ module Predictor::Base
     def input_matrices
       @matrices
     end
-
-    attr_accessor :associative_recommendations
 
     def redis_prefix(prefix = nil, &block)
       @redis_prefix = block_given? ? block : prefix
@@ -111,13 +104,12 @@ module Predictor::Base
     keys.empty? ? [] : (Predictor.redis.sunion(keys) - [item.to_s])
   end
 
-  def predictions_for(set=nil, item_set: nil, matrix_label: nil, with_scores: false, offset: 0, limit: -1, exclusion_set: [])
+  def predictions_for(set=nil, item_set: nil, matrix_label: nil, with_scores: false, offset: 0, limit: -1, exclusion_set: [], boost: {})
     fail "item_set or matrix_label and set is required" unless item_set || (matrix_label && set)
 
     if matrix_label
       matrix = input_matrices[matrix_label]
       item_set = Predictor.redis.smembers(matrix.redis_key(:items, set))
-      association = self.class.associative_recommendations[matrix_label]
     end
 
     item_keys = []
@@ -130,24 +122,32 @@ module Predictor::Base
 
     return [] if item_keys.empty?
 
-    if association
-      recommender = Object.const_get(association[:recommender]).new
+    boost.each do |matrix_label, values|
+      m = input_matrices[matrix_label]
 
-      association[:via].each do |key, weight|
-        m = recommender.input_matrices[key]
-        values = Predictor.redis.smembers(m.redis_key(:sets, set))
+      # Passing plain sets to zunionstore is undocumented, but tested and supported:
+      # https://github.com/antirez/redis/blob/2.8.11/tests/unit/type/zset.tcl#L481-L489
 
-        values.each do |value|
-          item_keys << redis_key(key, :items, value)
-          weights   << weight
+      case values
+      when Hash
+        values[:values].each do |value|
+          item_keys << m.redis_key(:items, value)
+          weights   << values[:weight]
         end
+      when Array
+        values.each do |value|
+          item_keys << m.redis_key(:items, value)
+          weights   << 1.0
+        end
+      else
+        raise "Bad value for boost: #{boost.inspect}"
       end
     end
 
     predictions = nil
 
     Predictor.redis.multi do |multi|
-      multi.zunionstore 'temp', item_keys, weights: weights
+      multi.zunionstore 'temp', item_keys
       multi.zrem 'temp', item_set
       multi.zrem 'temp', exclusion_set if exclusion_set.length > 0
       predictions = multi.zrevrange 'temp', offset, limit == -1 ? limit : offset + (limit - 1), with_scores: with_scores
