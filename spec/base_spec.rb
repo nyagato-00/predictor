@@ -57,6 +57,11 @@ describe Predictor::Base do
       UserRecommender.new.redis_key.should == 'predictor-test:UserRecommender'
     end
 
+    it "should be able to mimic the old naming defaults" do
+      BaseRecommender.redis_prefix([nil])
+      BaseRecommender.new.redis_key(:key).should == 'predictor-test:key'
+    end
+
     it "should respect the Predictor prefix configuration setting" do
       br = BaseRecommender.new
 
