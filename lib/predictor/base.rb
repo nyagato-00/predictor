@@ -34,17 +34,13 @@ module Predictor::Base
 
   def input_matrices
     @input_matrices ||= Hash[self.class.input_matrices.map{ |key, opts|
-      opts.merge!(:key => key, :redis_prefix => redis_prefix)
+      opts.merge!(:key => key, :base => self)
       [ key, Predictor::InputMatrix.new(opts) ]
     }]
   end
 
-  def predictor_redis_prefix
-    "predictor" # Overridden in testing.
-  end
-
   def redis_prefix
-    "#{predictor_redis_prefix}:#{self.class.to_s}"
+    "#{Predictor.redis_prefix}:#{self.class.to_s}"
   end
 
   def similarity_limit
