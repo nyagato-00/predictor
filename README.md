@@ -172,6 +172,33 @@ You can also use `limit_similarities_to(nil)` to remove the limit entirely. This
 
 If at some point you decide to lower your similarity limits, you'll want to be sure to shrink the size of the sorted sets already in Redis. You can do this with `CourseRecommender.new.ensure_similarity_limit_is_obeyed!`.
 
+Boost
+---------------------
+What if you want to recommend courses to users based not only on what courses they've taken, but on other attributes of courses that they may be interested in? You can do that by passing the :boost argument to predictions_for:
+
+```ruby
+class CourseRecommender
+  include Predictor::Base
+
+  # Courses are compared to one another by the users taking them and their tags.
+  input_matrix :users,  weight: 3.0
+  input_matrix :tags,   weight: 2.0
+  input_matrix :topics, weight: 2.0
+end
+
+recommender = CourseRecommender.new
+
+# We want to find recommendations for Billy, who's told us that he's
+# especially interested in free, interactive courses on Photoshop. So, we give
+# a boost to courses that are tagged as free and interactive and have
+# Photoshop as a topic:
+recommender.predictions_for("Billy", matrix_label: :users, boost: {tags: ['free', 'interactive'], topics: ["Photoshop"]})
+
+# We can also modify how much these tags and topics matter by specifying a
+# weight. The default is 1.0, but if that's too much we can just tweak it:
+recommender.predictions_for("Billy", matrix_label: :users, boost: {tags: {values: ['free', 'interactive'], weight: 0.4}, topics: {values: ["Photoshop"], weight: 0.3}})
+```
+
 Key Prefixes
 ---------------------
 As of 2.2.0, there is much more control available over the format of the keys Predictor will use in Redis. By default, the CourseRecommender given as an example above will use keys like "predictor:CourseRecommender:users:items:user1". You can configure the global namespace like so:

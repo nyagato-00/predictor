@@ -56,6 +56,13 @@ describe Predictor::Base do
       BaseRecommender.new.redis_key.should == 'predictor-test:BaseRecommender'
       UserRecommender.new.redis_key.should == 'predictor-test:UserRecommender'
     end
+  end
+
+  describe "redis_key" do
+    it "should vary based on the class name" do
+      BaseRecommender.new.redis_key.should == 'predictor-test:BaseRecommender'
+      UserRecommender.new.redis_key.should == 'predictor-test:UserRecommender'
+    end
 
     it "should be able to mimic the old naming defaults" do
       BaseRecommender.redis_prefix([nil])
@@ -215,6 +222,82 @@ describe Predictor::Base do
       predictions.should == ["other"]
       predictions = sm.predictions_for('me', matrix_label: :users, offset: 1)
       predictions.should == ["other", "nada"]
+    end
+
+    it "accepts a :boost option" do
+      BaseRecommender.input_matrix(:users, weight: 4.0)
+      BaseRecommender.input_matrix(:tags, weight: 1.0)
+      sm = BaseRecommender.new
+      sm.users.add_to_set('me', "foo", "bar", "fnord")
+      sm.users.add_to_set('not_me', "foo", "shmoo")
+      sm.users.add_to_set('another', "fnord", "other")
+      sm.users.add_to_set('another', "nada")
+      sm.tags.add_to_set('tag1', "foo", "fnord", "shmoo")
+      sm.tags.add_to_set('tag2', "bar", "shmoo")
+      sm.tags.add_to_set('tag3', "shmoo", "nada")
+      sm.process!
+
+      # Syntax #1: Tags passed as array, weights assumed to be 1.0
+      predictions = sm.predictions_for('me', matrix_label: :users, boost: {tags: ['tag3']})
+      predictions.should == ["shmoo", "nada", "other"]
+      predictions = sm.predictions_for(item_set: ["foo", "bar", "fnord"], boost: {tags: ['tag3']})
+      predictions.should == ["shmoo", "nada", "other"]
+      predictions = sm.predictions_for('me', matrix_label: :users, offset: 1, limit: 1, boost: {tags: ['tag3']})
+      predictions.should == ["nada"]
+      predictions = sm.predictions_for('me', matrix_label: :users, offset: 1, boost: {tags: ['tag3']})
+      predictions.should == ["nada", "other"]
+
+      # Syntax #2: Weights explicitly set.
+      predictions = sm.predictions_for('me', matrix_label: :users, boost: {tags: {values: ['tag3'], weight: 1.0}})
+      predictions.should == ["shmoo", "nada", "other"]
+      predictions = sm.predictions_for(item_set: ["foo", "bar", "fnord"], boost: {tags: {values: ['tag3'], weight: 1.0}})
+      predictions.should == ["shmoo", "nada", "other"]
+      predictions = sm.predictions_for('me', matrix_label: :users, offset: 1, limit: 1, boost: {tags: {values: ['tag3'], weight: 1.0}})
+      predictions.should == ["nada"]
+      predictions = sm.predictions_for('me', matrix_label: :users, offset: 1, boost: {tags: {values: ['tag3'], weight: 1.0}})
+      predictions.should == ["nada", "other"]
+
+      # Make sure weights are actually being passed to Redis.
+      shmoo, nada, other = sm.predictions_for('me', matrix_label: :users, boost: {tags: {values: ['tag3'], weight: 10000.0}}, with_scores: true)
+      shmoo[0].should == 'shmoo'
+      shmoo[1].should > 10000
+      nada[0].should == 'nada'
+      nada[1].should > 10000
+      other[0].should == 'other'
+      other[1].should < 10
+    end
+
+    it "accepts a :boost option, even with an empty item set" do
+      BaseRecommender.input_matrix(:users, weight: 4.0)
+      BaseRecommender.input_matrix(:tags, weight: 1.0)
+      sm = BaseRecommender.new
+      sm.users.add_to_set('not_me', "foo", "shmoo")
+      sm.users.add_to_set('another', "fnord", "other")
+      sm.users.add_to_set('another', "nada")
+      sm.tags.add_to_set('tag1', "foo", "fnord", "shmoo")
+      sm.tags.add_to_set('tag2', "bar", "shmoo")
+      sm.tags.add_to_set('tag3', "shmoo", "nada")
+      sm.process!
+
+      # Syntax #1: Tags passed as array, weights assumed to be 1.0
+      predictions = sm.predictions_for('me', matrix_label: :users, boost: {tags: ['tag3']})
+      predictions.should == ["shmoo", "nada"]
+      predictions = sm.predictions_for(item_set: [], boost: {tags: ['tag3']})
+      predictions.should == ["shmoo", "nada"]
+      predictions = sm.predictions_for('me', matrix_label: :users, offset: 1, limit: 1, boost: {tags: ['tag3']})
+      predictions.should == ["nada"]
+      predictions = sm.predictions_for('me', matrix_label: :users, offset: 1, boost: {tags: ['tag3']})
+      predictions.should == ["nada"]
+
+      # Syntax #2: Weights explicitly set.
+      predictions = sm.predictions_for('me', matrix_label: :users, boost: {tags: {values: ['tag3'], weight: 1.0}})
+      predictions.should == ["shmoo", "nada"]
+      predictions = sm.predictions_for(item_set: [], boost: {tags: {values: ['tag3'], weight: 1.0}})
+      predictions.should == ["shmoo", "nada"]
+      predictions = sm.predictions_for('me', matrix_label: :users, offset: 1, limit: 1, boost: {tags: {values: ['tag3'], weight: 1.0}})
+      predictions.should == ["nada"]
+      predictions = sm.predictions_for('me', matrix_label: :users, offset: 1, boost: {tags: {values: ['tag3'], weight: 1.0}})
+      predictions.should == ["nada"]
     end
   end
 
