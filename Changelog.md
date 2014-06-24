@@ -2,7 +2,7 @@
 Predictor Changelog
 =========
 
-2.2.0 (Unreleased)
+2.2.0
 ---------------------
 * The namespace used for keys in Redis is now configurable on a global or per-class basis. See the readme for more information. If you were overriding the redis_prefix instance method before, it is recommended that you use the new redis_prefix class method instead.
 * Data stored in Redis is now namespaced by the class name of the recommender it is stored by. This change ensures that different recommenders with input matrices of the same name don't overwrite each others' data. After upgrading you'll need to either reindex your data in Redis or configure Predictor to use the naming system you were using before. If you were using the defaults before and you're not worried about matrix name collisions, you can mimic the old behavior with:
