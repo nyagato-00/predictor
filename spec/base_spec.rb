@@ -250,6 +250,15 @@ describe Predictor::Base do
       predictions.should == ["nada"]
       predictions = sm.predictions_for('me', matrix_label: :users, offset: 1, boost: {tags: {values: ['tag3'], weight: 1.0}})
       predictions.should == ["nada", "other"]
+
+      # Make sure weights are actually being passed to Redis.
+      shmoo, nada, other = sm.predictions_for('me', matrix_label: :users, boost: {tags: {values: ['tag3'], weight: 10000.0}}, with_scores: true)
+      shmoo[0].should == 'shmoo'
+      shmoo[1].should > 10000
+      nada[0].should == 'nada'
+      nada[1].should > 10000
+      other[0].should == 'other'
+      other[1].should < 10
     end
 
     it "accepts a :boost option, even with an empty item set" do

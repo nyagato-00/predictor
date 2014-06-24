@@ -147,7 +147,7 @@ module Predictor::Base
     predictions = nil
 
     Predictor.redis.multi do |multi|
-      multi.zunionstore 'temp', item_keys
+      multi.zunionstore 'temp', item_keys, weights: weights
       multi.zrem 'temp', item_set if item_set.any?
       multi.zrem 'temp', exclusion_set if exclusion_set.length > 0
       predictions = multi.zrevrange 'temp', offset, limit == -1 ? limit : offset + (limit - 1), with_scores: with_scores
