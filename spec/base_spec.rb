@@ -1,14 +1,13 @@
 require 'spec_helper'
 
 describe Predictor::Base do
-  class BaseRecommender
-    include Predictor::Base
-  end
-
   before(:each) do
     flush_redis!
     BaseRecommender.input_matrices = {}
     BaseRecommender.reset_similarity_limit!
+    BaseRecommender.redis_prefix(nil)
+    UserRecommender.input_matrices = {}
+    UserRecommender.reset_similarity_limit!
   end
 
   describe "configuration" do
@@ -52,6 +51,81 @@ describe Predictor::Base do
     end
   end
 
+  describe "redis_key" do
+    it "should vary based on the class name" do
+      BaseRecommender.new.redis_key.should == 'predictor-test:BaseRecommender'
+      UserRecommender.new.redis_key.should == 'predictor-test:UserRecommender'
+    end
+
+    it "should be able to mimic the old naming defaults" do
+      BaseRecommender.redis_prefix([nil])
+      BaseRecommender.new.redis_key(:key).should == 'predictor-test:key'
+    end
+
+    it "should respect the Predictor prefix configuration setting" do
+      br = BaseRecommender.new
+
+      br.redis_key.should == "predictor-test:BaseRecommender"
+      br.redis_key(:another).should == "predictor-test:BaseRecommender:another"
+      br.redis_key(:another, :key).should == "predictor-test:BaseRecommender:another:key"
+      br.redis_key(:another, [:set, :of, :keys]).should == "predictor-test:BaseRecommender:another:set:of:keys"
+
+      i = 0
+      Predictor.redis_prefix { i += 1 }
+      br.redis_key.should == "1:BaseRecommender"
+      br.redis_key(:another).should == "2:BaseRecommender:another"
+      br.redis_key(:another, :key).should == "3:BaseRecommender:another:key"
+      br.redis_key(:another, [:set, :of, :keys]).should == "4:BaseRecommender:another:set:of:keys"
+
+      Predictor.redis_prefix nil
+      br.redis_key.should == "predictor:BaseRecommender"
+      br.redis_key(:another).should == "predictor:BaseRecommender:another"
+      br.redis_key(:another, :key).should == "predictor:BaseRecommender:another:key"
+      br.redis_key(:another, [:set, :of, :keys]).should == "predictor:BaseRecommender:another:set:of:keys"
+
+      Predictor.redis_prefix [nil]
+      br.redis_key.should == "BaseRecommender"
+      br.redis_key(:another).should == "BaseRecommender:another"
+      br.redis_key(:another, :key).should == "BaseRecommender:another:key"
+      br.redis_key(:another, [:set, :of, :keys]).should == "BaseRecommender:another:set:of:keys"
+
+      Predictor.redis_prefix { [1, 2, 3] }
+      br.redis_key.should == "1:2:3:BaseRecommender"
+      br.redis_key(:another).should == "1:2:3:BaseRecommender:another"
+      br.redis_key(:another, :key).should == "1:2:3:BaseRecommender:another:key"
+      br.redis_key(:another, [:set, :of, :keys]).should == "1:2:3:BaseRecommender:another:set:of:keys"
+
+      Predictor.redis_prefix 'predictor-test'
+      br.redis_key.should == "predictor-test:BaseRecommender"
+      br.redis_key(:another).should == "predictor-test:BaseRecommender:another"
+      br.redis_key(:another, :key).should == "predictor-test:BaseRecommender:another:key"
+      br.redis_key(:another, [:set, :of, :keys]).should == "predictor-test:BaseRecommender:another:set:of:keys"
+    end
+
+    it "should respect the class prefix configuration setting" do
+      br = BaseRecommender.new
+
+      BaseRecommender.redis_prefix('base')
+      br.redis_key.should == "predictor-test:base"
+      br.redis_key(:another).should == "predictor-test:base:another"
+      br.redis_key(:another, :key).should == "predictor-test:base:another:key"
+      br.redis_key(:another, [:set, :of, :keys]).should == "predictor-test:base:another:set:of:keys"
+
+      i = 0
+      BaseRecommender.redis_prefix { i += 1 }
+      br.redis_key.should == "predictor-test:1"
+      br.redis_key(:another).should == "predictor-test:2:another"
+      br.redis_key(:another, :key).should == "predictor-test:3:another:key"
+      br.redis_key(:another, [:set, :of, :keys]).should == "predictor-test:4:another:set:of:keys"
+
+      BaseRecommender.redis_prefix(nil)
+      br.redis_key.should == "predictor-test:BaseRecommender"
+      br.redis_key(:another).should == "predictor-test:BaseRecommender:another"
+      br.redis_key(:another, :key).should == "predictor-test:BaseRecommender:another:key"
+      br.redis_key(:another, [:set, :of, :keys]).should == "predictor-test:BaseRecommender:another:set:of:keys"
+    end
+  end
+
   describe "all_items" do
     it "returns all items across all matrices" do
       BaseRecommender.input_matrix(:anotherinput)
@@ -61,6 +135,21 @@ describe Predictor::Base do
       sm.add_to_matrix(:yetanotherinput, 'b', "fnord", "shmoo", "bar")
       sm.all_items.should include('foo', 'bar', 'fnord', 'shmoo')
       sm.all_items.length.should == 4
+    end
+
+    it "doesn't return items from other recommenders" do
+      BaseRecommender.input_matrix(:anotherinput)
+      BaseRecommender.input_matrix(:yetanotherinput)
+      UserRecommender.input_matrix(:anotherinput)
+      UserRecommender.input_matrix(:yetanotherinput)
+      sm = BaseRecommender.new
+      sm.add_to_matrix(:anotherinput, 'a', "foo", "bar")
+      sm.add_to_matrix(:yetanotherinput, 'b', "fnord", "shmoo", "bar")
+      sm.all_items.should include('foo', 'bar', 'fnord', 'shmoo')
+      sm.all_items.length.should == 4
+
+      ur = UserRecommender.new
+      ur.all_items.should == []
     end
   end
 
@@ -291,9 +380,10 @@ describe Predictor::Base do
       sm.set1.add_to_set "item1", "foo", "bar"
       sm.set1.add_to_set "item2", "nada", "bar"
       sm.set2.add_to_set "item3", "bar", "other"
-      Predictor.redis.keys("#{sm.redis_prefix}:*").should_not be_empty
+
+      Predictor.redis.keys(sm.redis_key('*')).should_not be_empty
       sm.clean!
-      Predictor.redis.keys("#{sm.redis_prefix}:*").should be_empty
+      Predictor.redis.keys(sm.redis_key('*')).should be_empty
     end
   end
 

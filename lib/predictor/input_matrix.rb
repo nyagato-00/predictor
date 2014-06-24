@@ -4,12 +4,16 @@ module Predictor
       @opts = opts
     end
 
+    def base
+      @opts[:base]
+    end
+
     def parent_redis_key(*append)
-      ([@opts.fetch(:redis_prefix)] + append).flatten.compact.join(":")
+      base.redis_key(*append)
     end
 
     def redis_key(*append)
-      ([@opts.fetch(:redis_prefix), @opts.fetch(:key)] + append).flatten.compact.join(":")
+      base.redis_key(@opts.fetch(:key), *append)
     end
 
     def weight

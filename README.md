@@ -172,6 +172,26 @@ You can also use `limit_similarities_to(nil)` to remove the limit entirely. This
 
 If at some point you decide to lower your similarity limits, you'll want to be sure to shrink the size of the sorted sets already in Redis. You can do this with `CourseRecommender.new.ensure_similarity_limit_is_obeyed!`.
 
+Key Prefixes
+---------------------
+As of 2.2.0, there is much more control available over the format of the keys Predictor will use in Redis. By default, the CourseRecommender given as an example above will use keys like "predictor:CourseRecommender:users:items:user1". You can configure the global namespace like so:
+
+```ruby
+  Predictor.redis_prefix 'my_namespace' # => "my_namespace:CourseRecommender:users:items:user1"
+  # Or, for a multitenanted setup:
+  Predictor.redis_prefix { "user-#{User.current.id}" } # => "user-7:CourseRecommender:users:items:user1"
+```
+
+You can also configure the namespace used by each class you create:
+
+```ruby
+  class CourseRecommender
+    include Predictor::Base
+    redis_prefix "courses" # => "predictor:courses:users:items:user1"
+    redis_prefix { "courses_for_user-#{User.current.id}" } # => "predictor:courses_for_user-7:users:items:user1"
+  end
+```
+
 Upgrading from 1.0 to 2.0
 ---------------------
 As mentioned, 2.0.0 is quite a bit different than 1.0.0, so simply upgrading with no changes likely won't work. My apologies for this. I promise this won't happen in future releases, as I'm much more confident in this Predictor release than the last. Anywho, upgrading really shouldn't be that much of a pain if you follow these steps:

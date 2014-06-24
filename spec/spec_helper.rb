@@ -8,12 +8,14 @@ def flush_redis!
   end
 end
 
-module Predictor::Base
+Predictor.redis_prefix "predictor-test"
 
-  def redis_prefix
-    "predictor-test"
-  end
+class BaseRecommender
+  include Predictor::Base
+end
 
+class UserRecommender
+  include Predictor::Base
 end
 
 class TestRecommender
@@ -23,7 +25,6 @@ class TestRecommender
 end
 
 class Predictor::TestInputMatrix
-
   def initialize(opts)
     @opts = opts
   end
@@ -31,5 +32,4 @@ class Predictor::TestInputMatrix
   def method_missing(method, *args)
     @opts[method]
   end
-
 end
