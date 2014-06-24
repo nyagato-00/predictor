@@ -53,83 +53,83 @@ describe Predictor::Base do
 
   describe "redis_key" do
     it "should vary based on the class name" do
-      BaseRecommender.new.redis_key.should == 'predictor-test:BaseRecommender'
-      UserRecommender.new.redis_key.should == 'predictor-test:UserRecommender'
+      expect(BaseRecommender.new.redis_key).to eq('predictor-test:BaseRecommender')
+      expect(UserRecommender.new.redis_key).to eq('predictor-test:UserRecommender')
     end
   end
 
   describe "redis_key" do
     it "should vary based on the class name" do
-      BaseRecommender.new.redis_key.should == 'predictor-test:BaseRecommender'
-      UserRecommender.new.redis_key.should == 'predictor-test:UserRecommender'
+      expect(BaseRecommender.new.redis_key).to eq('predictor-test:BaseRecommender')
+      expect(UserRecommender.new.redis_key).to eq('predictor-test:UserRecommender')
     end
 
     it "should be able to mimic the old naming defaults" do
       BaseRecommender.redis_prefix([nil])
-      BaseRecommender.new.redis_key(:key).should == 'predictor-test:key'
+      expect(BaseRecommender.new.redis_key(:key)).to eq('predictor-test:key')
     end
 
     it "should respect the Predictor prefix configuration setting" do
       br = BaseRecommender.new
 
-      br.redis_key.should == "predictor-test:BaseRecommender"
-      br.redis_key(:another).should == "predictor-test:BaseRecommender:another"
-      br.redis_key(:another, :key).should == "predictor-test:BaseRecommender:another:key"
-      br.redis_key(:another, [:set, :of, :keys]).should == "predictor-test:BaseRecommender:another:set:of:keys"
+      expect(br.redis_key).to eq("predictor-test:BaseRecommender")
+      expect(br.redis_key(:another)).to eq("predictor-test:BaseRecommender:another")
+      expect(br.redis_key(:another, :key)).to eq("predictor-test:BaseRecommender:another:key")
+      expect(br.redis_key(:another, [:set, :of, :keys])).to eq("predictor-test:BaseRecommender:another:set:of:keys")
 
       i = 0
       Predictor.redis_prefix { i += 1 }
-      br.redis_key.should == "1:BaseRecommender"
-      br.redis_key(:another).should == "2:BaseRecommender:another"
-      br.redis_key(:another, :key).should == "3:BaseRecommender:another:key"
-      br.redis_key(:another, [:set, :of, :keys]).should == "4:BaseRecommender:another:set:of:keys"
+      expect(br.redis_key).to eq("1:BaseRecommender")
+      expect(br.redis_key(:another)).to eq("2:BaseRecommender:another")
+      expect(br.redis_key(:another, :key)).to eq("3:BaseRecommender:another:key")
+      expect(br.redis_key(:another, [:set, :of, :keys])).to eq("4:BaseRecommender:another:set:of:keys")
 
       Predictor.redis_prefix nil
-      br.redis_key.should == "predictor:BaseRecommender"
-      br.redis_key(:another).should == "predictor:BaseRecommender:another"
-      br.redis_key(:another, :key).should == "predictor:BaseRecommender:another:key"
-      br.redis_key(:another, [:set, :of, :keys]).should == "predictor:BaseRecommender:another:set:of:keys"
+      expect(br.redis_key).to eq("predictor:BaseRecommender")
+      expect(br.redis_key(:another)).to eq("predictor:BaseRecommender:another")
+      expect(br.redis_key(:another, :key)).to eq("predictor:BaseRecommender:another:key")
+      expect(br.redis_key(:another, [:set, :of, :keys])).to eq("predictor:BaseRecommender:another:set:of:keys")
 
       Predictor.redis_prefix [nil]
-      br.redis_key.should == "BaseRecommender"
-      br.redis_key(:another).should == "BaseRecommender:another"
-      br.redis_key(:another, :key).should == "BaseRecommender:another:key"
-      br.redis_key(:another, [:set, :of, :keys]).should == "BaseRecommender:another:set:of:keys"
+      expect(br.redis_key).to eq("BaseRecommender")
+      expect(br.redis_key(:another)).to eq("BaseRecommender:another")
+      expect(br.redis_key(:another, :key)).to eq("BaseRecommender:another:key")
+      expect(br.redis_key(:another, [:set, :of, :keys])).to eq("BaseRecommender:another:set:of:keys")
 
       Predictor.redis_prefix { [1, 2, 3] }
-      br.redis_key.should == "1:2:3:BaseRecommender"
-      br.redis_key(:another).should == "1:2:3:BaseRecommender:another"
-      br.redis_key(:another, :key).should == "1:2:3:BaseRecommender:another:key"
-      br.redis_key(:another, [:set, :of, :keys]).should == "1:2:3:BaseRecommender:another:set:of:keys"
+      expect(br.redis_key).to eq("1:2:3:BaseRecommender")
+      expect(br.redis_key(:another)).to eq("1:2:3:BaseRecommender:another")
+      expect(br.redis_key(:another, :key)).to eq("1:2:3:BaseRecommender:another:key")
+      expect(br.redis_key(:another, [:set, :of, :keys])).to eq("1:2:3:BaseRecommender:another:set:of:keys")
 
       Predictor.redis_prefix 'predictor-test'
-      br.redis_key.should == "predictor-test:BaseRecommender"
-      br.redis_key(:another).should == "predictor-test:BaseRecommender:another"
-      br.redis_key(:another, :key).should == "predictor-test:BaseRecommender:another:key"
-      br.redis_key(:another, [:set, :of, :keys]).should == "predictor-test:BaseRecommender:another:set:of:keys"
+      expect(br.redis_key).to eq("predictor-test:BaseRecommender")
+      expect(br.redis_key(:another)).to eq("predictor-test:BaseRecommender:another")
+      expect(br.redis_key(:another, :key)).to eq("predictor-test:BaseRecommender:another:key")
+      expect(br.redis_key(:another, [:set, :of, :keys])).to eq("predictor-test:BaseRecommender:another:set:of:keys")
     end
 
     it "should respect the class prefix configuration setting" do
       br = BaseRecommender.new
 
       BaseRecommender.redis_prefix('base')
-      br.redis_key.should == "predictor-test:base"
-      br.redis_key(:another).should == "predictor-test:base:another"
-      br.redis_key(:another, :key).should == "predictor-test:base:another:key"
-      br.redis_key(:another, [:set, :of, :keys]).should == "predictor-test:base:another:set:of:keys"
+      expect(br.redis_key).to eq("predictor-test:base")
+      expect(br.redis_key(:another)).to eq("predictor-test:base:another")
+      expect(br.redis_key(:another, :key)).to eq("predictor-test:base:another:key")
+      expect(br.redis_key(:another, [:set, :of, :keys])).to eq("predictor-test:base:another:set:of:keys")
 
       i = 0
       BaseRecommender.redis_prefix { i += 1 }
-      br.redis_key.should == "predictor-test:1"
-      br.redis_key(:another).should == "predictor-test:2:another"
-      br.redis_key(:another, :key).should == "predictor-test:3:another:key"
-      br.redis_key(:another, [:set, :of, :keys]).should == "predictor-test:4:another:set:of:keys"
+      expect(br.redis_key).to eq("predictor-test:1")
+      expect(br.redis_key(:another)).to eq("predictor-test:2:another")
+      expect(br.redis_key(:another, :key)).to eq("predictor-test:3:another:key")
+      expect(br.redis_key(:another, [:set, :of, :keys])).to eq("predictor-test:4:another:set:of:keys")
 
       BaseRecommender.redis_prefix(nil)
-      br.redis_key.should == "predictor-test:BaseRecommender"
-      br.redis_key(:another).should == "predictor-test:BaseRecommender:another"
-      br.redis_key(:another, :key).should == "predictor-test:BaseRecommender:another:key"
-      br.redis_key(:another, [:set, :of, :keys]).should == "predictor-test:BaseRecommender:another:set:of:keys"
+      expect(br.redis_key).to eq("predictor-test:BaseRecommender")
+      expect(br.redis_key(:another)).to eq("predictor-test:BaseRecommender:another")
+      expect(br.redis_key(:another, :key)).to eq("predictor-test:BaseRecommender:another:key")
+      expect(br.redis_key(:another, [:set, :of, :keys])).to eq("predictor-test:BaseRecommender:another:set:of:keys")
     end
   end
 
@@ -152,11 +152,11 @@ describe Predictor::Base do
       sm = BaseRecommender.new
       sm.add_to_matrix(:anotherinput, 'a', "foo", "bar")
       sm.add_to_matrix(:yetanotherinput, 'b', "fnord", "shmoo", "bar")
-      sm.all_items.should include('foo', 'bar', 'fnord', 'shmoo')
-      sm.all_items.length.should == 4
+      expect(sm.all_items).to include('foo', 'bar', 'fnord', 'shmoo')
+      expect(sm.all_items.length).to eq(4)
 
       ur = UserRecommender.new
-      ur.all_items.should == []
+      expect(ur.all_items).to eq([])
     end
   end
 
@@ -239,32 +239,32 @@ describe Predictor::Base do
 
       # Syntax #1: Tags passed as array, weights assumed to be 1.0
       predictions = sm.predictions_for('me', matrix_label: :users, boost: {tags: ['tag3']})
-      predictions.should == ["shmoo", "nada", "other"]
+      expect(predictions).to eq(["shmoo", "nada", "other"])
       predictions = sm.predictions_for(item_set: ["foo", "bar", "fnord"], boost: {tags: ['tag3']})
-      predictions.should == ["shmoo", "nada", "other"]
+      expect(predictions).to eq(["shmoo", "nada", "other"])
       predictions = sm.predictions_for('me', matrix_label: :users, offset: 1, limit: 1, boost: {tags: ['tag3']})
-      predictions.should == ["nada"]
+      expect(predictions).to eq(["nada"])
       predictions = sm.predictions_for('me', matrix_label: :users, offset: 1, boost: {tags: ['tag3']})
-      predictions.should == ["nada", "other"]
+      expect(predictions).to eq(["nada", "other"])
 
       # Syntax #2: Weights explicitly set.
       predictions = sm.predictions_for('me', matrix_label: :users, boost: {tags: {values: ['tag3'], weight: 1.0}})
-      predictions.should == ["shmoo", "nada", "other"]
+      expect(predictions).to eq(["shmoo", "nada", "other"])
       predictions = sm.predictions_for(item_set: ["foo", "bar", "fnord"], boost: {tags: {values: ['tag3'], weight: 1.0}})
-      predictions.should == ["shmoo", "nada", "other"]
+      expect(predictions).to eq(["shmoo", "nada", "other"])
       predictions = sm.predictions_for('me', matrix_label: :users, offset: 1, limit: 1, boost: {tags: {values: ['tag3'], weight: 1.0}})
-      predictions.should == ["nada"]
+      expect(predictions).to eq(["nada"])
       predictions = sm.predictions_for('me', matrix_label: :users, offset: 1, boost: {tags: {values: ['tag3'], weight: 1.0}})
-      predictions.should == ["nada", "other"]
+      expect(predictions).to eq(["nada", "other"])
 
       # Make sure weights are actually being passed to Redis.
       shmoo, nada, other = sm.predictions_for('me', matrix_label: :users, boost: {tags: {values: ['tag3'], weight: 10000.0}}, with_scores: true)
-      shmoo[0].should == 'shmoo'
-      shmoo[1].should > 10000
-      nada[0].should == 'nada'
-      nada[1].should > 10000
-      other[0].should == 'other'
-      other[1].should < 10
+      expect(shmoo[0]).to eq('shmoo')
+      expect(shmoo[1]).to be > 10000
+      expect(nada[0]).to eq('nada')
+      expect(nada[1]).to be > 10000
+      expect(other[0]).to eq('other')
+      expect(other[1]).to be < 10
     end
 
     it "accepts a :boost option, even with an empty item set" do
@@ -281,23 +281,23 @@ describe Predictor::Base do
 
       # Syntax #1: Tags passed as array, weights assumed to be 1.0
       predictions = sm.predictions_for('me', matrix_label: :users, boost: {tags: ['tag3']})
-      predictions.should == ["shmoo", "nada"]
+      expect(predictions).to eq(["shmoo", "nada"])
       predictions = sm.predictions_for(item_set: [], boost: {tags: ['tag3']})
-      predictions.should == ["shmoo", "nada"]
+      expect(predictions).to eq(["shmoo", "nada"])
       predictions = sm.predictions_for('me', matrix_label: :users, offset: 1, limit: 1, boost: {tags: ['tag3']})
-      predictions.should == ["nada"]
+      expect(predictions).to eq(["nada"])
       predictions = sm.predictions_for('me', matrix_label: :users, offset: 1, boost: {tags: ['tag3']})
-      predictions.should == ["nada"]
+      expect(predictions).to eq(["nada"])
 
       # Syntax #2: Weights explicitly set.
       predictions = sm.predictions_for('me', matrix_label: :users, boost: {tags: {values: ['tag3'], weight: 1.0}})
-      predictions.should == ["shmoo", "nada"]
+      expect(predictions).to eq(["shmoo", "nada"])
       predictions = sm.predictions_for(item_set: [], boost: {tags: {values: ['tag3'], weight: 1.0}})
-      predictions.should == ["shmoo", "nada"]
+      expect(predictions).to eq(["shmoo", "nada"])
       predictions = sm.predictions_for('me', matrix_label: :users, offset: 1, limit: 1, boost: {tags: {values: ['tag3'], weight: 1.0}})
-      predictions.should == ["nada"]
+      expect(predictions).to eq(["nada"])
       predictions = sm.predictions_for('me', matrix_label: :users, offset: 1, boost: {tags: {values: ['tag3'], weight: 1.0}})
-      predictions.should == ["nada"]
+      expect(predictions).to eq(["nada"])
     end
   end
 
