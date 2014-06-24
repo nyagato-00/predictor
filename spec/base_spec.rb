@@ -83,6 +83,12 @@ describe Predictor::Base do
       br.redis_key(:another, :key).should == "predictor:BaseRecommender:another:key"
       br.redis_key(:another, [:set, :of, :keys]).should == "predictor:BaseRecommender:another:set:of:keys"
 
+      Predictor.redis_prefix [nil]
+      br.redis_key.should == "BaseRecommender"
+      br.redis_key(:another).should == "BaseRecommender:another"
+      br.redis_key(:another, :key).should == "BaseRecommender:another:key"
+      br.redis_key(:another, [:set, :of, :keys]).should == "BaseRecommender:another:set:of:keys"
+
       Predictor.redis_prefix { [1, 2, 3] }
       br.redis_key.should == "1:2:3:BaseRecommender"
       br.redis_key(:another).should == "1:2:3:BaseRecommender:another"
