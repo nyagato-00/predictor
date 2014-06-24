@@ -12,6 +12,7 @@ Predictor Changelog
     redis_prefix [nil]
   end
 ```
+* The #predictions_for method on recommenders now accepts a :boost option to give more weight to items with particular attributes. See the readme for more information.
 
 2.1.0 (2014-06-19)
 ---------------------
