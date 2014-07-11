@@ -1,5 +1,5 @@
 namespace :benchmark do
-  task :process_items! do
+  task :process do
     require 'predictor'
     require 'pry'
     require 'logger'
