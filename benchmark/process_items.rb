@@ -21,15 +21,15 @@ namespace :benchmark do
 
     flush!
 
-    items = (1..20).map { |i| "item-#{i}" }
-    users = (1..10).map { |i| "user-#{i}" }
-    parts = (1..10).map { |i| "part-#{i}" }
+    items = (1..100).map { |i| "item-#{i}" }
+    users = (1..50).map  { |i| "user-#{i}" }
+    parts = (1..50).map  { |i| "part-#{i}" }
 
     r = ItemRecommender.new
 
     start = Time.now
-    users.each { |user| r.users.add_to_set user, *items.sample(5) }
-    parts.each { |part| r.parts.add_to_set part, *items.sample(5) }
+    users.each { |user| r.users.add_to_set user, *items.sample(20) }
+    parts.each { |part| r.parts.add_to_set part, *items.sample(20) }
     elapsed = Time.now - start
 
     puts "add_to_set = #{elapsed.round(3)} seconds"
