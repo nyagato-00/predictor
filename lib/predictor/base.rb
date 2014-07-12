@@ -179,9 +179,129 @@ module Predictor::Base
 
   def process_items!(*items)
     items = items.flatten if items.count == 1 && items[0].is_a?(Array)  # Old syntax
-    items.each do |item|
-      related_items(item).each{ |related_item| cache_similarity(item, related_item) }
+
+    matrix_data = {}
+    input_matrices.each do |name, matrix|
+      matrix_data[name] = {weight: matrix.weight, measure: matrix.measure_name}
     end
+    matrix_json = JSON.dump(matrix_data)
+
+    items.each do |item|
+      # TODO: Run items in batches.
+
+      lua = <<-LUA
+        local redis_prefix = ARGV[1]
+        local input_matrices = cjson.decode(ARGV[2])
+        local similarity_limit = tonumber(ARGV[3])
+        local item = ARGV[4]
+
+        local function table_concat(t1, t2)
+          for i=1, #t2 do
+            t1[#t1 + 1] = t2[i]
+          end
+          return t1
+        end
+
+        local keys = {}
+
+        for name, options in pairs(input_matrices) do
+          local key = table.concat({redis_prefix, name, 'sets', item}, ':')
+          local sets = redis.call('SMEMBERS', key)
+          for _, set in ipairs(sets) do
+            table.insert(keys, table.concat({redis_prefix, name, 'items', set}, ':'))
+          end
+        end
+
+        -- Account for empty tables.
+        if next(keys) == nil then
+          return nil
+        end
+
+        local related_items = redis.call('SUNION', unpack(keys))
+
+        local function add_similarity_if_necessary(item, similarity, score)
+          local store = true
+          local key = table.concat({redis_prefix, 'similarities', item}, ':')
+
+          if similarity_limit ~= nil then
+            local zrank = redis.call('ZRANK', key, similarity)
+
+            if zrank ~= nil then
+              local zcard = redis.call('ZCARD', key)
+
+              if zcard >= similarity_limit then
+                -- Similarity is not already stored and we are at limit of similarities.
+
+                local lowest_scored_item = redis.call('ZRANGEBYSCORE', key, '0', '+inf', 'withscores', 'limit', 0, 1)
+
+                if #lowest_scored_item > 0 then
+                  -- If score is less than or equal to the lowest score, don't store it. Otherwise, make room by removing the lowest scored similarity
+                  if score <= tonumber(lowest_scored_item[2]) then
+                    store = false
+                  else
+                    redis.call('ZREM', key, lowest_scored_item[1])
+                  end
+                end
+              end
+            end
+          end
+
+          if store then
+            redis.call('ZADD', key, score, similarity)
+          end
+        end
+
+        for i, related_item in ipairs(related_items) do
+          -- Disregard the current item.
+          if related_item ~= item then
+            local score = 0.0
+
+            for name, matrix in pairs(input_matrices) do
+              local s = 0.0
+
+              local key_1 = table.concat({redis_prefix, name, 'sets', item}, ':')
+              local key_2 = table.concat({redis_prefix, name, 'sets', related_item}, ':')
+
+              if matrix.measure == 'jaccard' then
+                local x = tonumber(redis.call('SINTERSTORE', 'temp', key_1, key_2))
+                local y = tonumber(redis.call('SUNIONSTORE', 'temp', key_1, key_2))
+                redis.call('DEL', 'temp')
+
+                if y > 0 then
+                  s = s + (x / y)
+                end
+              else -- Sorensen
+                local x = redis.call('SINTERSTORE', 'temp', key_1, key_2)
+                local y = redis.call('SCARD', key_1)
+                local z = redis.call('SCARD', key_2)
+
+                redis.call('DEL', 'temp')
+
+                local denom = y + z
+                if denom > 0 then
+                  s = s + (2 * x / denom)
+                end
+              end
+
+              score = score + (s * matrix.weight)
+            end
+
+            if score > 0 then
+              add_similarity_if_necessary(item, related_item, score)
+              add_similarity_if_necessary(related_item, item, score)
+            else
+              redis.call('ZREM', table.concat({redis_prefix, 'similarities', item}, ':'), related_item)
+              redis.call('ZREM', table.concat({redis_prefix, 'similarities', related_item}, ':'), item)
+            end
+          end
+        end
+      LUA
+
+      Predictor.redis.eval lua, argv: [redis_key, matrix_json, similarity_limit, item]
+    end
+
+    # related_items(item).each{ |related_item| cache_similarity(item, related_item) }
+
     return self
   end
 

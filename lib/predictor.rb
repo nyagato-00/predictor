@@ -1,3 +1,4 @@
+require 'json'
 require "redis"
 require "predictor/predictor"
 require "predictor/distance"

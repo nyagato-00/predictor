@@ -4,6 +4,10 @@ module Predictor
       @opts = opts
     end
 
+    def measure_name
+      @opts.fetch(:measure, :jaccard_index)
+    end
+
     def base
       @opts[:base]
     end
@@ -70,7 +74,6 @@ module Predictor
     end
 
     def score(item1, item2)
-      measure_name = @opts.fetch(:measure, :jaccard_index)
       Distance.send(measure_name, redis_key(:sets, item1), redis_key(:sets, item2), Predictor.redis)
     end
 
