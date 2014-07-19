@@ -300,9 +300,9 @@ module Predictor::Base
       LUA
 
       Predictor.redis.eval lua, argv: [redis_key, matrix_json, similarity_limit, item]
-    end
 
-    # related_items(item).each{ |related_item| cache_similarity(item, related_item) }
+      # related_items(item).each{ |related_item| cache_similarity(item, related_item) }
+    end
 
     return self
   end
