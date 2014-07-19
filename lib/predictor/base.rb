@@ -262,7 +262,7 @@ module Predictor::Base
               local key_1 = table.concat({redis_prefix, name, 'sets', item}, ':')
               local key_2 = table.concat({redis_prefix, name, 'sets', related_item}, ':')
 
-              if matrix.measure == 'jaccard' then
+              if matrix.measure == 'jaccard_index' then
                 local x = tonumber(redis.call('SINTERSTORE', 'temp', key_1, key_2))
                 local y = tonumber(redis.call('SUNIONSTORE', 'temp', key_1, key_2))
                 redis.call('DEL', 'temp')
@@ -270,7 +270,7 @@ module Predictor::Base
                 if y > 0 then
                   s = s + (x / y)
                 end
-              else -- Sorensen
+              elseif matrix.measure == 'sorensen_coefficient' then
                 local x = redis.call('SINTERSTORE', 'temp', key_1, key_2)
                 local y = redis.call('SCARD', key_1)
                 local z = redis.call('SCARD', key_2)
@@ -281,6 +281,8 @@ module Predictor::Base
                 if denom > 0 then
                   s = s + (2 * x / denom)
                 end
+              else
+                error("Bad matrix.measure: " .. matrix.measure)
               end
 
               score = score + (s * matrix.weight)
