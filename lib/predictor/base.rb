@@ -187,9 +187,9 @@ module Predictor::Base
     matrix_json = JSON.dump(matrix_data)
 
     items.each do |item|
-      Predictor.process_lua_script(redis_key, matrix_json, similarity_limit, item)
+      # Predictor.process_lua_script(redis_key, matrix_json, similarity_limit, item)
 
-      # related_items(item).each{ |related_item| cache_similarity(item, related_item) }
+      related_items(item).each{ |related_item| cache_similarity(item, related_item) }
     end
 
     return self
