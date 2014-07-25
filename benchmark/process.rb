@@ -21,25 +21,26 @@ namespace :benchmark do
 
     flush!
 
-    items = (1..1000).map { |i| "item-#{i}" }
-    users = (1..500).map  { |i| "user-#{i}" }
-    parts = (1..500).map  { |i| "part-#{i}" }
+    items = (1..200).map { |i| "item-#{i}" }
+    users = (1..100).map { |i| "user-#{i}" }
+    parts = (1..100).map { |i| "part-#{i}" }
 
     r = ItemRecommender.new
 
     start = Time.now
-    users.each { |user| r.users.add_to_set user, *items.sample(200) }
-    parts.each { |part| r.parts.add_to_set part, *items.sample(200) }
+    users.each { |user| r.users.add_to_set user, *items.sample(40) }
+    parts.each { |part| r.parts.add_to_set part, *items.sample(40) }
     elapsed = Time.now - start
 
     puts "add_to_set = #{elapsed.round(3)} seconds"
 
-    start = Time.now
-    r.process!
-    elapsed = Time.now - start
+    [:ruby, :lua, :union].each do |algorithm|
+      start = Time.now
+      r.process_items!(r.all_items, algorithm: algorithm)
+      elapsed = Time.now - start
+      puts "#{algorithm} = #{elapsed.round(3)} seconds"
+    end
 
     flush!
-
-    puts "process! = #{elapsed.round(3)} seconds"
   end
 end

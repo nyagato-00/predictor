@@ -178,18 +178,57 @@ module Predictor::Base
   end
 
   def process_items!(*items)
-    items = items.flatten if items.count == 1 && items[0].is_a?(Array)  # Old syntax
+    options = items.last.is_a?(Hash) ? items.pop : {}
+    items = items.flatten if items.count == 1 && items[0].is_a?(Array) # Old syntax
 
-    matrix_data = {}
-    input_matrices.each do |name, matrix|
-      matrix_data[name] = {weight: matrix.weight, measure: matrix.measure_name}
-    end
-    matrix_json = JSON.dump(matrix_data)
+    case options[:algorithm]
+    when :lua
+      matrix_data = {}
+      input_matrices.each do |name, matrix|
+        matrix_data[name] = {weight: matrix.weight, measure: matrix.measure_name}
+      end
+      matrix_json = JSON.dump(matrix_data)
 
-    items.each do |item|
-      # Predictor.process_lua_script(redis_key, matrix_json, similarity_limit, item)
+      items.each do |item|
+        Predictor.process_lua_script(redis_key, matrix_json, similarity_limit, item)
+      end
+    when :union
+      items.each do |item|
+        keys    = []
+        weights = []
 
-      related_items(item).each{ |related_item| cache_similarity(item, related_item) }
+        input_matrices.each do |key, matrix|
+          k = matrix.redis_key(:sets, item)
+          item_keys = Predictor.redis.smembers(k).map { |set| matrix.redis_key(:items, set) }
+
+          counts = Predictor.redis.multi do |multi|
+            item_keys.each { |key| Predictor.redis.scard(key) }
+          end
+
+          item_keys.zip(counts).each do |key, count|
+            unless count.zero?
+              keys << key
+              weights << matrix.weight / count
+            end
+          end
+        end
+
+        Predictor.redis.multi do |multi|
+          key = redis_key(:similarities, item)
+          multi.del(key)
+
+          if keys.any?
+            multi.zunionstore(key, keys, weights: weights)
+            multi.zrem(key, item)
+            multi.zremrangebyrank(key, 0, -129)
+            multi.zunionstore key, [key] # Rewrite zset for optimized storage.
+          end
+        end
+      end
+    else # Default to old behavior, processing things in Ruby.
+      items.each do |item|
+        related_items(item).each { |related_item| cache_similarity(item, related_item) }
+      end
     end
 
     return self
