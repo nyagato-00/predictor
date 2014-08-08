@@ -8,6 +8,9 @@ describe Predictor::Base do
     BaseRecommender.redis_prefix(nil)
     UserRecommender.input_matrices = {}
     UserRecommender.reset_similarity_limit!
+    BaseRecommender.processing_technique = nil
+    UserRecommender.processing_technique = nil
+    Predictor.processing_technique = nil
   end
 
   describe "configuration" do
@@ -48,6 +51,14 @@ describe Predictor::Base do
       BaseRecommender.input_matrix(:myinput)
       sm = BaseRecommender.new
       expect(sm.myinput).to be_a(Predictor::InputMatrix)
+    end
+
+    it "should accept a custom processing_technique, or default to Predictor's default" do
+      BaseRecommender.processing_technique.should == :ruby
+      Predictor.processing_technique = :lua
+      BaseRecommender.processing_technique.should == :lua
+      BaseRecommender.processing_technique = :union
+      BaseRecommender.processing_technique.should == :union
     end
   end
 

@@ -46,6 +46,14 @@ module Predictor::Base
         to_s
       end
     end
+
+    def processing_technique=(technique)
+      @technique = technique
+    end
+
+    def processing_technique
+      @technique || Predictor.processing_technique
+    end
   end
 
   def input_matrices
