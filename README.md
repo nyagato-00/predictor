@@ -223,14 +223,16 @@ Processing Items
 ---------------------
 As of 2.3.0, there are now multiple techniques available for processing item similarities. You can choose between them by setting a global default like `Predictor.processing_technique(:lua)` or setting a technique for certain classes like `CourseRecommender.processing_technique(:union)`. There are three values.
 - :ruby - This is the default, and is how Predictor calculated similarities before 2.3.0. With this technique the Jaccard and Sorensen calculations are performed in Ruby, with frequent calls to Redis to retrieve simple values. It is somewhat slow.
-- :lua - This option performs the Jaccard and Sorensen calculations in a Lua script on the Redis server. It is substantially faster than the :ruby technique, but blocks the Redis server while each set of calculations are run, each of which may take up to several hundred milliseconds. If your application requires your Redis server to always return results quickly, and you're not able to simply run calculations during off-hours, you should use a different strategy.
+- :lua - This option performs the Jaccard and Sorensen calculations in a Lua script on the Redis server. It is substantially faster than the :ruby technique, but blocks the Redis server while each set of calculations are run. The period of blocking will vary based on the size and disposition of your data, but each call may take up to several hundred milliseconds. If your application requires your Redis server to always return results quickly, and you're not able to simply run calculations during off-hours, you should use a different strategy.
 - :union - This option skips Jaccard and Sorensen entirely, and uses a simpler technique involving a ZUNIONSTORE across many item sets to calculate similarities. The results are different from, but similar to the results of using the Jaccard and Sorensen algorithms. It is even faster than the :lua option and does not have the same problem of blocking Redis for long periods of time, but before using it you should sample the output to ensure that it is good enough for your application.
 
 Predictor now contains a benchmarking script that you can use to compare the speed of these options. An example output from the processing of a relatively small dataset is:
 
+```
 ruby = 21.098 seconds
 lua = 2.106 seconds
 union = 0.741 seconds
+```
 
 Upgrading from 1.0 to 2.0
 ---------------------
