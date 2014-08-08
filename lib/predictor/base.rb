@@ -227,7 +227,7 @@ module Predictor::Base
           if keys.any?
             multi.zunionstore(key, keys, weights: weights)
             multi.zrem(key, item)
-            multi.zremrangebyrank(key, 0, -129)
+            multi.zremrangebyrank(key, 0, -(similarity_limit + 1))
             multi.zunionstore key, [key] # Rewrite zset for optimized storage.
           end
         end
