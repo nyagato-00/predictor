@@ -36,6 +36,14 @@ module Predictor
     Object.module_eval("Predictor::#{klass}", __FILE__, __LINE__)
   end
 
+  def self.processing_technique=(algorithm)
+    @technique = algorithm
+  end
+
+  def self.processing_technique
+    @technique || :ruby
+  end
+
   def self.process_lua_script(*args)
     @process_sha ||= redis.script(:load, PROCESS_ITEMS_LUA_SCRIPT)
     redis.evalsha(@process_sha, argv: args)

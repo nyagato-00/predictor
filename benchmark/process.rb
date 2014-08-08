@@ -34,11 +34,12 @@ namespace :benchmark do
 
     puts "add_to_set = #{elapsed.round(3)} seconds"
 
-    [:ruby, :lua, :union].each do |algorithm|
+    [:ruby, :lua, :union].each do |technique|
       start = Time.now
-      r.process_items!(r.all_items, algorithm: algorithm)
+      Predictor.processing_technique = technique
+      r.process!
       elapsed = Time.now - start
-      puts "#{algorithm} = #{elapsed.round(3)} seconds"
+      puts "#{technique} = #{elapsed.round(3)} seconds"
     end
 
     flush!

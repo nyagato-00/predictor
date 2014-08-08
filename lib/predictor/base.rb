@@ -178,10 +178,9 @@ module Predictor::Base
   end
 
   def process_items!(*items)
-    options = items.last.is_a?(Hash) ? items.pop : {}
     items = items.flatten if items.count == 1 && items[0].is_a?(Array) # Old syntax
 
-    case options[:algorithm]
+    case Predictor.processing_technique
     when :lua
       matrix_data = {}
       input_matrices.each do |name, matrix|
