@@ -85,6 +85,11 @@ describe Predictor::InputMatrix do
       expect(@matrix.items_for("item1")).to include("foo", "bar", "fnord", "blubb")
     end
 
+    it "does not crash if the set of items is empty" do
+      @matrix.add_to_set "item1"
+      @matrix.add_to_set "item1", []
+    end
+
     it "adds the key to each set member's 'items' set" do
       expect(@matrix.sets_for("foo")).not_to include("item1")
       expect(@matrix.sets_for("bar")).not_to include("item1")

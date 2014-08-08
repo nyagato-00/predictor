@@ -26,13 +26,15 @@ module Predictor
 
     def add_to_set(set, *items)
       items = items.flatten if items.count == 1 && items[0].is_a?(Array)
-      Predictor.redis.multi do |redis|
-        redis.sadd(parent_redis_key(:all_items), items)
-        redis.sadd(redis_key(:items, set), items)
+      if items.any?
+        Predictor.redis.multi do |redis|
+          redis.sadd(parent_redis_key(:all_items), items)
+          redis.sadd(redis_key(:items, set), items)
 
-        items.each do |item|
-          # add the set to the item's set--inverting the sets
-          redis.sadd(redis_key(:sets, item), set)
+          items.each do |item|
+            # add the set to the item's set--inverting the sets
+            redis.sadd(redis_key(:sets, item), set)
+          end
         end
       end
     end
