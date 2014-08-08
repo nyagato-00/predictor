@@ -36,7 +36,7 @@ namespace :benchmark do
 
     [:ruby, :lua, :union].each do |technique|
       start = Time.now
-      Predictor.processing_technique = technique
+      Predictor.processing_technique technique
       r.process!
       elapsed = Time.now - start
       puts "#{technique} = #{elapsed.round(3)} seconds"
