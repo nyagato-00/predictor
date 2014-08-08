@@ -47,12 +47,12 @@ module Predictor::Base
       end
     end
 
-    def processing_technique=(technique)
+    def processing_technique(technique)
       @technique = technique
     end
 
-    def processing_technique
-      @technique || Predictor.processing_technique
+    def get_processing_technique
+      @technique || Predictor.get_processing_technique
     end
   end
 
@@ -188,7 +188,7 @@ module Predictor::Base
   def process_items!(*items)
     items = items.flatten if items.count == 1 && items[0].is_a?(Array) # Old syntax
 
-    case Predictor.processing_technique
+    case self.class.get_processing_technique
     when :lua
       matrix_data = {}
       input_matrices.each do |name, matrix|

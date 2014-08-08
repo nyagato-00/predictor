@@ -8,9 +8,9 @@ describe Predictor::Base do
     BaseRecommender.redis_prefix(nil)
     UserRecommender.input_matrices = {}
     UserRecommender.reset_similarity_limit!
-    BaseRecommender.processing_technique = nil
-    UserRecommender.processing_technique = nil
-    Predictor.processing_technique = nil
+    BaseRecommender.processing_technique nil
+    UserRecommender.processing_technique nil
+    Predictor.processing_technique nil
   end
 
   describe "configuration" do
@@ -54,11 +54,11 @@ describe Predictor::Base do
     end
 
     it "should accept a custom processing_technique, or default to Predictor's default" do
-      BaseRecommender.processing_technique.should == :ruby
-      Predictor.processing_technique = :lua
-      BaseRecommender.processing_technique.should == :lua
-      BaseRecommender.processing_technique = :union
-      BaseRecommender.processing_technique.should == :union
+      BaseRecommender.get_processing_technique.should == :ruby
+      Predictor.processing_technique :lua
+      BaseRecommender.get_processing_technique.should == :lua
+      BaseRecommender.processing_technique :union
+      BaseRecommender.get_processing_technique.should == :union
     end
   end
 
@@ -215,7 +215,7 @@ describe Predictor::Base do
   [:ruby, :lua, :union].each do |technique|
     describe "predictions_for with #{technique} processing" do
       before do
-        Predictor.processing_technique = technique
+        Predictor.processing_technique(technique)
       end
 
       it "returns relevant predictions" do
@@ -319,7 +319,7 @@ describe Predictor::Base do
 
     describe "process_items! with #{technique} processing" do
       before do
-        Predictor.processing_technique = technique
+        Predictor.processing_technique(technique)
       end
 
       context "with no similarity_limit" do

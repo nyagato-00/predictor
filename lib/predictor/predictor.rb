@@ -36,11 +36,11 @@ module Predictor
     Object.module_eval("Predictor::#{klass}", __FILE__, __LINE__)
   end
 
-  def self.processing_technique=(algorithm)
+  def self.processing_technique(algorithm)
     @technique = algorithm
   end
 
-  def self.processing_technique
+  def self.get_processing_technique
     @technique || :ruby
   end
 
