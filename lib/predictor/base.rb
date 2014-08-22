@@ -75,7 +75,7 @@ module Predictor::Base
     end
   end
 
-  def respond_to?(method)
+  def respond_to?(method, include_all = false)
     input_matrices.has_key?(method) ? true : super
   end
 
