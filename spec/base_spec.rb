@@ -212,6 +212,36 @@ describe Predictor::Base do
     end
   end
 
+  describe "predictions_for" do
+    it "accepts an :on option to return scores of specific objects" do
+      BaseRecommender.input_matrix(:users, weight: 4.0)
+      BaseRecommender.input_matrix(:tags, weight: 1.0)
+      sm = BaseRecommender.new
+      sm.users.add_to_set('me', "foo", "bar", "fnord")
+      sm.users.add_to_set('not_me', "foo", "shmoo")
+      sm.users.add_to_set('another', "fnord", "other")
+      sm.users.add_to_set('another', "nada")
+      sm.tags.add_to_set('tag1', "foo", "fnord", "shmoo")
+      sm.tags.add_to_set('tag2', "bar", "shmoo", "other")
+      sm.tags.add_to_set('tag3', "shmoo", "nada")
+      sm.process!
+      predictions = sm.predictions_for('me', matrix_label: :users, on: 'other', with_scores: true)
+      expect(predictions).to eq([['other', 3.0]])
+      predictions = sm.predictions_for('me', matrix_label: :users, on: ['other'], with_scores: true)
+      expect(predictions).to eq([['other', 3.0]])
+      predictions = sm.predictions_for('me', matrix_label: :users, on: ['other', 'nada'], with_scores: true)
+      expect(predictions).to eq([['other', 3.0], ['nada', 2.0]])
+      predictions = sm.predictions_for(item_set: ["foo", "bar", "fnord"], on: ['other', 'nada'], with_scores: true)
+      expect(predictions).to eq([['other', 3.0], ['nada', 2.0]])
+      predictions = sm.predictions_for(item_set: ["foo", "bar", "fnord"], on: ['other', 'nada'])
+      expect(predictions).to eq(['other', 'nada'])
+      predictions = sm.predictions_for('me', matrix_label: :users, on: ['shmoo', 'other', 'nada'], offset: 1, limit: 1, with_scores: true)
+      expect(predictions).to eq([["other", 3.0]])
+      predictions = sm.predictions_for('me', matrix_label: :users, on: ['shmoo', 'other', 'nada'], offset: 1, with_scores: true)
+      expect(predictions).to eq([['other', 3.0], ['nada', 2.0]])
+    end
+  end
+
   [:ruby, :lua, :union].each do |technique|
     describe "predictions_for with #{technique} processing" do
       before do

@@ -83,7 +83,7 @@ module Predictor::Base
     end
   end
 
-  def respond_to?(method)
+  def respond_to?(method, include_all = false)
     input_matrices.has_key?(method) ? true : super
   end
 
@@ -112,8 +112,10 @@ module Predictor::Base
     keys.empty? ? [] : (Predictor.redis.sunion(keys) - [item.to_s])
   end
 
-  def predictions_for(set=nil, item_set: nil, matrix_label: nil, with_scores: false, offset: 0, limit: -1, exclusion_set: [], boost: {})
+  def predictions_for(set=nil, item_set: nil, matrix_label: nil, with_scores: false, on: nil, offset: 0, limit: -1, exclusion_set: [], boost: {})
     fail "item_set or matrix_label and set is required" unless item_set || (matrix_label && set)
+
+    on = Array(on)
 
     if matrix_label
       matrix = input_matrices[matrix_label]
@@ -158,6 +160,13 @@ module Predictor::Base
       multi.zunionstore 'temp', item_keys, weights: weights
       multi.zrem 'temp', item_set if item_set.any?
       multi.zrem 'temp', exclusion_set if exclusion_set.length > 0
+
+      if on.any?
+        multi.zadd 'temp2', on.map{ |val| [0.0, val] }
+        multi.zinterstore 'temp', ['temp', 'temp2']
+        multi.del 'temp2'
+      end
+
       predictions = multi.zrevrange 'temp', offset, limit == -1 ? limit : offset + (limit - 1), with_scores: with_scores
       multi.del 'temp'
     end
