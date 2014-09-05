@@ -8,6 +8,9 @@ describe Predictor::Base do
     BaseRecommender.redis_prefix(nil)
     UserRecommender.input_matrices = {}
     UserRecommender.reset_similarity_limit!
+    BaseRecommender.processing_technique nil
+    UserRecommender.processing_technique nil
+    Predictor.processing_technique nil
   end
 
   describe "configuration" do
@@ -48,6 +51,14 @@ describe Predictor::Base do
       BaseRecommender.input_matrix(:myinput)
       sm = BaseRecommender.new
       expect(sm.myinput).to be_a(Predictor::InputMatrix)
+    end
+
+    it "should accept a custom processing_technique, or default to Predictor's default" do
+      BaseRecommender.get_processing_technique.should == :ruby
+      Predictor.processing_technique :lua
+      BaseRecommender.get_processing_technique.should == :lua
+      BaseRecommender.processing_technique :union
+      BaseRecommender.get_processing_technique.should == :union
     end
   end
 
@@ -202,28 +213,6 @@ describe Predictor::Base do
   end
 
   describe "predictions_for" do
-    it "returns relevant predictions" do
-      BaseRecommender.input_matrix(:users, weight: 4.0)
-      BaseRecommender.input_matrix(:tags, weight: 1.0)
-      sm = BaseRecommender.new
-      sm.users.add_to_set('me', "foo", "bar", "fnord")
-      sm.users.add_to_set('not_me', "foo", "shmoo")
-      sm.users.add_to_set('another', "fnord", "other")
-      sm.users.add_to_set('another', "nada")
-      sm.tags.add_to_set('tag1', "foo", "fnord", "shmoo")
-      sm.tags.add_to_set('tag2', "bar", "shmoo")
-      sm.tags.add_to_set('tag3', "shmoo", "nada")
-      sm.process!
-      predictions = sm.predictions_for('me', matrix_label: :users)
-      expect(predictions).to eq(["shmoo", "other", "nada"])
-      predictions = sm.predictions_for(item_set: ["foo", "bar", "fnord"])
-      expect(predictions).to eq(["shmoo", "other", "nada"])
-      predictions = sm.predictions_for('me', matrix_label: :users, offset: 1, limit: 1)
-      expect(predictions).to eq(["other"])
-      predictions = sm.predictions_for('me', matrix_label: :users, offset: 1)
-      expect(predictions).to eq(["other", "nada"])
-    end
-
     it "accepts an :on option to return scores of specific objects" do
       BaseRecommender.input_matrix(:users, weight: 4.0)
       BaseRecommender.input_matrix(:tags, weight: 1.0)
@@ -236,7 +225,6 @@ describe Predictor::Base do
       sm.tags.add_to_set('tag2', "bar", "shmoo", "other")
       sm.tags.add_to_set('tag3', "shmoo", "nada")
       sm.process!
-
       predictions = sm.predictions_for('me', matrix_label: :users, on: 'other', with_scores: true)
       expect(predictions).to eq([['other', 3.0]])
       predictions = sm.predictions_for('me', matrix_label: :users, on: ['other'], with_scores: true)
@@ -252,81 +240,153 @@ describe Predictor::Base do
       predictions = sm.predictions_for('me', matrix_label: :users, on: ['shmoo', 'other', 'nada'], offset: 1, with_scores: true)
       expect(predictions).to eq([['other', 3.0], ['nada', 2.0]])
     end
+  end
 
-    it "accepts a :boost option" do
-      BaseRecommender.input_matrix(:users, weight: 4.0)
-      BaseRecommender.input_matrix(:tags, weight: 1.0)
-      sm = BaseRecommender.new
-      sm.users.add_to_set('me', "foo", "bar", "fnord")
-      sm.users.add_to_set('not_me', "foo", "shmoo")
-      sm.users.add_to_set('another', "fnord", "other")
-      sm.users.add_to_set('another', "nada")
-      sm.tags.add_to_set('tag1', "foo", "fnord", "shmoo")
-      sm.tags.add_to_set('tag2', "bar", "shmoo")
-      sm.tags.add_to_set('tag3', "shmoo", "nada")
-      sm.process!
+  [:ruby, :lua, :union].each do |technique|
+    describe "predictions_for with #{technique} processing" do
+      before do
+        Predictor.processing_technique(technique)
+      end
 
-      # Syntax #1: Tags passed as array, weights assumed to be 1.0
-      predictions = sm.predictions_for('me', matrix_label: :users, boost: {tags: ['tag3']})
-      expect(predictions).to eq(["shmoo", "nada", "other"])
-      predictions = sm.predictions_for(item_set: ["foo", "bar", "fnord"], boost: {tags: ['tag3']})
-      expect(predictions).to eq(["shmoo", "nada", "other"])
-      predictions = sm.predictions_for('me', matrix_label: :users, offset: 1, limit: 1, boost: {tags: ['tag3']})
-      expect(predictions).to eq(["nada"])
-      predictions = sm.predictions_for('me', matrix_label: :users, offset: 1, boost: {tags: ['tag3']})
-      expect(predictions).to eq(["nada", "other"])
+      it "returns relevant predictions" do
+        BaseRecommender.input_matrix(:users, weight: 4.0)
+        BaseRecommender.input_matrix(:tags, weight: 1.0)
+        sm = BaseRecommender.new
+        sm.users.add_to_set('me', "foo", "bar", "fnord")
+        sm.users.add_to_set('not_me', "foo", "shmoo")
+        sm.users.add_to_set('another', "fnord", "other")
+        sm.users.add_to_set('another', "nada")
+        sm.tags.add_to_set('tag1', "foo", "fnord", "shmoo")
+        sm.tags.add_to_set('tag2', "bar", "shmoo")
+        sm.tags.add_to_set('tag3', "shmoo", "nada")
+        sm.process!
+        predictions = sm.predictions_for('me', matrix_label: :users)
+        expect(predictions).to eq(["shmoo", "other", "nada"])
+        predictions = sm.predictions_for(item_set: ["foo", "bar", "fnord"])
+        expect(predictions).to eq(["shmoo", "other", "nada"])
+        predictions = sm.predictions_for('me', matrix_label: :users, offset: 1, limit: 1)
+        expect(predictions).to eq(["other"])
+        predictions = sm.predictions_for('me', matrix_label: :users, offset: 1)
+        expect(predictions).to eq(["other", "nada"])
+      end
 
-      # Syntax #2: Weights explicitly set.
-      predictions = sm.predictions_for('me', matrix_label: :users, boost: {tags: {values: ['tag3'], weight: 1.0}})
-      expect(predictions).to eq(["shmoo", "nada", "other"])
-      predictions = sm.predictions_for(item_set: ["foo", "bar", "fnord"], boost: {tags: {values: ['tag3'], weight: 1.0}})
-      expect(predictions).to eq(["shmoo", "nada", "other"])
-      predictions = sm.predictions_for('me', matrix_label: :users, offset: 1, limit: 1, boost: {tags: {values: ['tag3'], weight: 1.0}})
-      expect(predictions).to eq(["nada"])
-      predictions = sm.predictions_for('me', matrix_label: :users, offset: 1, boost: {tags: {values: ['tag3'], weight: 1.0}})
-      expect(predictions).to eq(["nada", "other"])
+      it "accepts a :boost option" do
+        BaseRecommender.input_matrix(:users, weight: 4.0)
+        BaseRecommender.input_matrix(:tags, weight: 1.0)
+        sm = BaseRecommender.new
+        sm.users.add_to_set('me', "foo", "bar", "fnord")
+        sm.users.add_to_set('not_me', "foo", "shmoo")
+        sm.users.add_to_set('another', "fnord", "other")
+        sm.users.add_to_set('another', "nada")
+        sm.tags.add_to_set('tag1', "foo", "fnord", "shmoo")
+        sm.tags.add_to_set('tag2', "bar", "shmoo")
+        sm.tags.add_to_set('tag3', "shmoo", "nada")
+        sm.process!
 
-      # Make sure weights are actually being passed to Redis.
-      shmoo, nada, other = sm.predictions_for('me', matrix_label: :users, boost: {tags: {values: ['tag3'], weight: 10000.0}}, with_scores: true)
-      expect(shmoo[0]).to eq('shmoo')
-      expect(shmoo[1]).to be > 10000
-      expect(nada[0]).to eq('nada')
-      expect(nada[1]).to be > 10000
-      expect(other[0]).to eq('other')
-      expect(other[1]).to be < 10
+        # Syntax #1: Tags passed as array, weights assumed to be 1.0
+        predictions = sm.predictions_for('me', matrix_label: :users, boost: {tags: ['tag3']})
+        expect(predictions).to eq(["shmoo", "nada", "other"])
+        predictions = sm.predictions_for(item_set: ["foo", "bar", "fnord"], boost: {tags: ['tag3']})
+        expect(predictions).to eq(["shmoo", "nada", "other"])
+        predictions = sm.predictions_for('me', matrix_label: :users, offset: 1, limit: 1, boost: {tags: ['tag3']})
+        expect(predictions).to eq(["nada"])
+        predictions = sm.predictions_for('me', matrix_label: :users, offset: 1, boost: {tags: ['tag3']})
+        expect(predictions).to eq(["nada", "other"])
+
+        # Syntax #2: Weights explicitly set.
+        predictions = sm.predictions_for('me', matrix_label: :users, boost: {tags: {values: ['tag3'], weight: 1.0}})
+        expect(predictions).to eq(["shmoo", "nada", "other"])
+        predictions = sm.predictions_for(item_set: ["foo", "bar", "fnord"], boost: {tags: {values: ['tag3'], weight: 1.0}})
+        expect(predictions).to eq(["shmoo", "nada", "other"])
+        predictions = sm.predictions_for('me', matrix_label: :users, offset: 1, limit: 1, boost: {tags: {values: ['tag3'], weight: 1.0}})
+        expect(predictions).to eq(["nada"])
+        predictions = sm.predictions_for('me', matrix_label: :users, offset: 1, boost: {tags: {values: ['tag3'], weight: 1.0}})
+        expect(predictions).to eq(["nada", "other"])
+
+        # Make sure weights are actually being passed to Redis.
+        shmoo, nada, other = sm.predictions_for('me', matrix_label: :users, boost: {tags: {values: ['tag3'], weight: 10000.0}}, with_scores: true)
+        expect(shmoo[0]).to eq('shmoo')
+        expect(shmoo[1]).to be > 10000
+        expect(nada[0]).to eq('nada')
+        expect(nada[1]).to be > 10000
+        expect(other[0]).to eq('other')
+        expect(other[1]).to be < 10
+      end
+
+      it "accepts a :boost option, even with an empty item set" do
+        BaseRecommender.input_matrix(:users, weight: 4.0)
+        BaseRecommender.input_matrix(:tags, weight: 1.0)
+        sm = BaseRecommender.new
+        sm.users.add_to_set('not_me', "foo", "shmoo")
+        sm.users.add_to_set('another', "fnord", "other")
+        sm.users.add_to_set('another', "nada")
+        sm.tags.add_to_set('tag1', "foo", "fnord", "shmoo")
+        sm.tags.add_to_set('tag2', "bar", "shmoo")
+        sm.tags.add_to_set('tag3', "shmoo", "nada")
+        sm.process!
+
+        # Syntax #1: Tags passed as array, weights assumed to be 1.0
+        predictions = sm.predictions_for('me', matrix_label: :users, boost: {tags: ['tag3']})
+        expect(predictions).to eq(["shmoo", "nada"])
+        predictions = sm.predictions_for(item_set: [], boost: {tags: ['tag3']})
+        expect(predictions).to eq(["shmoo", "nada"])
+        predictions = sm.predictions_for('me', matrix_label: :users, offset: 1, limit: 1, boost: {tags: ['tag3']})
+        expect(predictions).to eq(["nada"])
+        predictions = sm.predictions_for('me', matrix_label: :users, offset: 1, boost: {tags: ['tag3']})
+        expect(predictions).to eq(["nada"])
+
+        # Syntax #2: Weights explicitly set.
+        predictions = sm.predictions_for('me', matrix_label: :users, boost: {tags: {values: ['tag3'], weight: 1.0}})
+        expect(predictions).to eq(["shmoo", "nada"])
+        predictions = sm.predictions_for(item_set: [], boost: {tags: {values: ['tag3'], weight: 1.0}})
+        expect(predictions).to eq(["shmoo", "nada"])
+        predictions = sm.predictions_for('me', matrix_label: :users, offset: 1, limit: 1, boost: {tags: {values: ['tag3'], weight: 1.0}})
+        expect(predictions).to eq(["nada"])
+        predictions = sm.predictions_for('me', matrix_label: :users, offset: 1, boost: {tags: {values: ['tag3'], weight: 1.0}})
+        expect(predictions).to eq(["nada"])
+      end
     end
 
-    it "accepts a :boost option, even with an empty item set" do
-      BaseRecommender.input_matrix(:users, weight: 4.0)
-      BaseRecommender.input_matrix(:tags, weight: 1.0)
-      sm = BaseRecommender.new
-      sm.users.add_to_set('not_me', "foo", "shmoo")
-      sm.users.add_to_set('another', "fnord", "other")
-      sm.users.add_to_set('another', "nada")
-      sm.tags.add_to_set('tag1', "foo", "fnord", "shmoo")
-      sm.tags.add_to_set('tag2', "bar", "shmoo")
-      sm.tags.add_to_set('tag3', "shmoo", "nada")
-      sm.process!
+    describe "process_items! with #{technique} processing" do
+      before do
+        Predictor.processing_technique(technique)
+      end
 
-      # Syntax #1: Tags passed as array, weights assumed to be 1.0
-      predictions = sm.predictions_for('me', matrix_label: :users, boost: {tags: ['tag3']})
-      expect(predictions).to eq(["shmoo", "nada"])
-      predictions = sm.predictions_for(item_set: [], boost: {tags: ['tag3']})
-      expect(predictions).to eq(["shmoo", "nada"])
-      predictions = sm.predictions_for('me', matrix_label: :users, offset: 1, limit: 1, boost: {tags: ['tag3']})
-      expect(predictions).to eq(["nada"])
-      predictions = sm.predictions_for('me', matrix_label: :users, offset: 1, boost: {tags: ['tag3']})
-      expect(predictions).to eq(["nada"])
+      context "with no similarity_limit" do
+        it "calculates the similarity between the item and all related_items (other items in a set the given item is in)" do
+          BaseRecommender.input_matrix(:myfirstinput)
+          BaseRecommender.input_matrix(:mysecondinput)
+          BaseRecommender.input_matrix(:mythirdinput, weight: 3.0)
+          sm = BaseRecommender.new
+          sm.myfirstinput.add_to_set 'set1', 'item1', 'item2'
+          sm.mysecondinput.add_to_set 'set2', 'item2', 'item3'
+          sm.mythirdinput.add_to_set 'set3', 'item2', 'item3'
+          sm.mythirdinput.add_to_set 'set4', 'item1', 'item2', 'item3'
+          expect(sm.similarities_for('item2')).to be_empty
+          sm.process_items!('item2')
+          similarities = sm.similarities_for('item2')
+          expect(similarities).to eq(["item3", "item1"])
+        end
+      end
 
-      # Syntax #2: Weights explicitly set.
-      predictions = sm.predictions_for('me', matrix_label: :users, boost: {tags: {values: ['tag3'], weight: 1.0}})
-      expect(predictions).to eq(["shmoo", "nada"])
-      predictions = sm.predictions_for(item_set: [], boost: {tags: {values: ['tag3'], weight: 1.0}})
-      expect(predictions).to eq(["shmoo", "nada"])
-      predictions = sm.predictions_for('me', matrix_label: :users, offset: 1, limit: 1, boost: {tags: {values: ['tag3'], weight: 1.0}})
-      expect(predictions).to eq(["nada"])
-      predictions = sm.predictions_for('me', matrix_label: :users, offset: 1, boost: {tags: {values: ['tag3'], weight: 1.0}})
-      expect(predictions).to eq(["nada"])
+      context "with a similarity_limit" do
+        it "calculates the similarity between the item and all related_items (other items in a set the given item is in), but obeys the similarity_limit" do
+          BaseRecommender.input_matrix(:myfirstinput)
+          BaseRecommender.input_matrix(:mysecondinput)
+          BaseRecommender.input_matrix(:mythirdinput, weight: 3.0)
+          BaseRecommender.limit_similarities_to(1)
+          sm = BaseRecommender.new
+          sm.myfirstinput.add_to_set 'set1', 'item1', 'item2'
+          sm.mysecondinput.add_to_set 'set2', 'item2', 'item3'
+          sm.mythirdinput.add_to_set 'set3', 'item2', 'item3'
+          sm.mythirdinput.add_to_set 'set4', 'item1', 'item2', 'item3'
+          expect(sm.similarities_for('item2')).to be_empty
+          sm.process_items!('item2')
+          similarities = sm.similarities_for('item2')
+          expect(similarities).to include("item3")
+          expect(similarities.length).to eq(1)
+        end
+      end
     end
   end
 
@@ -369,44 +429,6 @@ describe Predictor::Base do
       expect(sm.sets_for("bar").length).to eq(3)
       expect(sm.sets_for("bar")).to include("item1", "item2", "item3")
       expect(sm.sets_for("other")).to eq(["item3"])
-    end
-  end
-
-  describe "process_items!" do
-    context "with no similarity_limit" do
-      it "calculates the similarity between the item and all related_items (other items in a set the given item is in)" do
-        BaseRecommender.input_matrix(:myfirstinput)
-        BaseRecommender.input_matrix(:mysecondinput)
-        BaseRecommender.input_matrix(:mythirdinput, weight: 3.0)
-        sm = BaseRecommender.new
-        sm.myfirstinput.add_to_set 'set1', 'item1', 'item2'
-        sm.mysecondinput.add_to_set 'set2', 'item2', 'item3'
-        sm.mythirdinput.add_to_set 'set3', 'item2', 'item3'
-        sm.mythirdinput.add_to_set 'set4', 'item1', 'item2', 'item3'
-        expect(sm.similarities_for('item2')).to be_empty
-        sm.process_items!('item2')
-        similarities = sm.similarities_for('item2', with_scores: true)
-        expect(similarities).to include(["item3", 4.0], ["item1", 2.5])
-      end
-    end
-
-    context "with a similarity_limit" do
-      it "calculates the similarity between the item and all related_items (other items in a set the given item is in), but obeys the similarity_limit" do
-        BaseRecommender.input_matrix(:myfirstinput)
-        BaseRecommender.input_matrix(:mysecondinput)
-        BaseRecommender.input_matrix(:mythirdinput, weight: 3.0)
-        BaseRecommender.limit_similarities_to(1)
-        sm = BaseRecommender.new
-        sm.myfirstinput.add_to_set 'set1', 'item1', 'item2'
-        sm.mysecondinput.add_to_set 'set2', 'item2', 'item3'
-        sm.mythirdinput.add_to_set 'set3', 'item2', 'item3'
-        sm.mythirdinput.add_to_set 'set4', 'item1', 'item2', 'item3'
-        expect(sm.similarities_for('item2')).to be_empty
-        sm.process_items!('item2')
-        similarities = sm.similarities_for('item2', with_scores: true)
-        expect(similarities).to include(["item3", 4.0])
-        expect(similarities.length).to eq(1)
-      end
     end
   end
 

@@ -2,7 +2,12 @@
 Predictor Changelog
 =========
 
-2.2.0
+2.3.0
+---------------------
+* The logic for processing item similarities was ported to a Lua script. Use `Predictor.processing_technique(:lua)` to use the Lua script for all similarity calculations, or use `MyRecommender.processing_technique(:lua)` to use it for specific recommenders. It is substantially faster than the default (old) Ruby mechanism, but has the disadvantage of blocking the Redis server while it runs.
+* An alternate method of calculating item similarities was added, which uses a ZUNIONSTORE across item sets. The results are similar to those achieved by using the Ruby or Lua scripts, but faster. Use `Predictor.processing_technique(:union)` to use the ZUNIONSTORE technique for all similarity calculations, or use `MyRecommender.processing_technique(:union)` to use it for specific recommenders.
+
+2.2.0 (2014-06-24)
 ---------------------
 * The namespace used for keys in Redis is now configurable on a global or per-class basis. See the readme for more information. If you were overriding the redis_prefix instance method before, it is recommended that you use the new redis_prefix class method instead.
 * Data stored in Redis is now namespaced by the class name of the recommender it is stored by. This change ensures that different recommenders with input matrices of the same name don't overwrite each others' data. After upgrading you'll need to either reindex your data in Redis or configure Predictor to use the naming system you were using before. If you were using the defaults before and you're not worried about matrix name collisions, you can mimic the old behavior with:

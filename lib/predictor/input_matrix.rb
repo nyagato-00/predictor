@@ -4,6 +4,10 @@ module Predictor
       @opts = opts
     end
 
+    def measure_name
+      @opts.fetch(:measure, :jaccard_index)
+    end
+
     def base
       @opts[:base]
     end
@@ -22,8 +26,16 @@ module Predictor
 
     def add_to_set(set, *items)
       items = items.flatten if items.count == 1 && items[0].is_a?(Array)
-      Predictor.redis.multi do
-        items.each { |item| add_single_nomulti(set, item) }
+      if items.any?
+        Predictor.redis.multi do |redis|
+          redis.sadd(parent_redis_key(:all_items), items)
+          redis.sadd(redis_key(:items, set), items)
+
+          items.each do |item|
+            # add the set to the item's set--inverting the sets
+            redis.sadd(redis_key(:sets, item), set)
+          end
+        end
       end
     end
 
@@ -64,7 +76,6 @@ module Predictor
     end
 
     def score(item1, item2)
-      measure_name = @opts.fetch(:measure, :jaccard_index)
       Distance.send(measure_name, redis_key(:sets, item1), redis_key(:sets, item2), Predictor.redis)
     end
 
@@ -72,15 +83,5 @@ module Predictor
       warn 'InputMatrix#calculate_jaccard is now deprecated. Use InputMatrix#score instead'
       Distance.jaccard_index(redis_key(:sets, item1), redis_key(:sets, item2), Predictor.redis)
     end
-
-    private
-
-    def add_single_nomulti(set, item)
-      Predictor.redis.sadd(parent_redis_key(:all_items), item)
-      Predictor.redis.sadd(redis_key(:items, set), item)
-      # add the set to the item's set--inverting the sets
-      Predictor.redis.sadd(redis_key(:sets, item), set)
-    end
-
   end
 end
