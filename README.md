@@ -266,6 +266,12 @@ predictor.delete_from_matrix!(:topics, "course-1")
 ```
 * Regenerate your recommendations, as redis keys have changed for Predictor 2. You can use the recommender.clean! to clear out old similarities, then run your rake task (or whatever you've setup) to create new similarities.
 
+About Pathgather
+---------------------
+Pathgather is an NYC-based startup building a platform that dramatically accelerates learning for enterprises by bringing employees, training content, and existing enterprise systems into one engaging platform.
+
+Every Friday, we work on open-source software (our own or other projects). Want to join our always growing team? Peruse our [current opportunities](http://www.pathgather.com/jobs/) or reach out to us at <tech@pathgather.com>!
+
 Problems? Issues? Want to help out?
 ---------------------
 Just submit a Gihub issue or pull request! We'd love to have you help out, as the most common library to use for this need, Recommendify, was last updated 2 years ago. We'll be sure to keep this maintained, but we could certainly use your help!
