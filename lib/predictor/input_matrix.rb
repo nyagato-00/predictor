@@ -39,6 +39,18 @@ module Predictor
       end
     end
 
+    def remove_from_set(set, *items)
+      items = items.flatten if items.count == 1 && items[0].is_a?(Array)
+      if items.any?
+        Predictor.redis.multi do |redis|
+          items.each do |item|
+            redis.srem(redis_key(:items, set), item)
+            redis.srem(redis_key(:sets, item), set)
+          end
+        end
+      end
+    end
+
     def add_set(set, items)
       add_to_set(set, *items)
     end
