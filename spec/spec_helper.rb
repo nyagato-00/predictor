@@ -24,6 +24,22 @@ class TestRecommender
   input_matrix :jaccard_one
 end
 
+class PrefixRecommender
+  include Predictor::Base
+
+  def initialize(prefix)
+    @prefix = prefix
+  end
+
+  def prefix=(new_prefix)
+    @prefix = new_prefix
+  end
+
+  def get_redis_prefix
+    @prefix
+  end
+end
+
 class Predictor::TestInputMatrix
   def initialize(opts)
     @opts = opts
