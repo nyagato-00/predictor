@@ -142,6 +142,21 @@ describe Predictor::Base do
       expect(br.redis_key(:another, :key)).to eq("predictor-test:BaseRecommender:another:key")
       expect(br.redis_key(:another, [:set, :of, :keys])).to eq("predictor-test:BaseRecommender:another:set:of:keys")
     end
+
+    it "should respect the instance prefix configuration setting" do
+      br = PrefixRecommender.new("foo")
+
+      expect(br.redis_key).to eq("predictor-test:PrefixRecommender:foo")
+      expect(br.redis_key(:another)).to eq("predictor-test:PrefixRecommender:foo:another")
+      expect(br.redis_key(:another, :key)).to eq("predictor-test:PrefixRecommender:foo:another:key")
+      expect(br.redis_key(:another, [:set, :of, :keys])).to eq("predictor-test:PrefixRecommender:foo:another:set:of:keys")
+
+
+      br.prefix = nil
+      expect(br.redis_key).to eq("predictor-test:PrefixRecommender")
+      expect(br.redis_key(:another)).to eq("predictor-test:PrefixRecommender:another")
+
+    end
   end
 
   describe "all_items" do

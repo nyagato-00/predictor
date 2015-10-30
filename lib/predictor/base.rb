@@ -63,8 +63,12 @@ module Predictor::Base
     }]
   end
 
+  def get_redis_prefix
+    nil # Override in subclass.
+  end
+
   def redis_prefix
-    [Predictor.get_redis_prefix, self.class.get_redis_prefix]
+    [Predictor.get_redis_prefix, self.class.get_redis_prefix, self.get_redis_prefix].compact
   end
 
   def similarity_limit

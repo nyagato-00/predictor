@@ -219,6 +219,26 @@ You can also configure the namespace used by each class you create:
   end
 ```
 
+You can also configure the namespace used by each instance you create in addition to class and global namespace:
+
+```ruby
+  class CourseRecommender
+    include Predictor::Base
+
+    def initialize(prefix)
+      @prefix = prefix
+    end
+
+    # Simply override this instance method with the prefix you want
+    def get_redis_prefix
+      @prefix
+    end
+  end
+
+  recommender = CourseRecommender.new("super")
+  recommender.redis_prefix # "predictor:CourseRecommender:super"
+```
+
 Processing Items
 ---------------------
 As of 2.3.0, there are now multiple techniques available for processing item similarities. You can choose between them by setting a global default like `Predictor.processing_technique(:lua)` or setting a technique for certain classes like `CourseRecommender.processing_technique(:union)`. There are three values.
