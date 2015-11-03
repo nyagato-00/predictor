@@ -267,6 +267,10 @@ module Predictor::Base
     return self
   end
 
+  def add_item(item)
+    Predictor.redis.sadd(redis_key(:all_items), item)
+  end
+
   def delete_item!(item)
     Predictor.redis.srem(redis_key(:all_items), item)
     Predictor.redis.watch(redis_key(:similarities, item)) do
