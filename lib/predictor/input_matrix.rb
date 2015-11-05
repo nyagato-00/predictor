@@ -39,6 +39,14 @@ module Predictor
       end
     end
 
+    # Delete a specific relationship
+    def remove_from_set(set, item)
+      Predictor.redis.multi do |redis|
+        redis.srem(redis_key(:items, set), item)
+        redis.srem(redis_key(:sets, item), set)
+      end
+    end
+
     def add_set(set, items)
       add_to_set(set, *items)
     end

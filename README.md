@@ -132,6 +132,10 @@ If your data is deleted from your persistent storage, you certainly don't want t
 recommender = CourseRecommender.new
 
 # User removed course-1 from topic-1, but course-1 still exists
+
+recommender.delete_pair_from_matrix!(:topics, "topic-1", "course-1")
+
+#User removed course-1 from all topics
 recommender.delete_from_matrix!(:topics, "course-1")
 
 # course-1 was permanently deleted
