@@ -460,6 +460,32 @@ describe Predictor::Base do
     end
   end
 
+  describe "delete_pair_from_matrix!" do
+    it "should call remove_from_set on the matrix" do
+      BaseRecommender.input_matrix(:anotherinput)
+      sm = BaseRecommender.new
+      sm.anotherinput.add_to_set('a', "foo")
+      sm.anotherinput.add_to_set('a', "bar")
+      sm.anotherinput.add_to_set('a', "shmoo")
+      sm.process!
+      expect(sm.similarities_for('bar')).to include('foo', 'shmoo')
+      expect(sm.anotherinput).to receive(:remove_from_set).with('a', 'foo')
+      sm.delete_pair_from_matrix!(:anotherinput, 'a', 'foo')
+    end
+
+    it "updates similarities" do
+      BaseRecommender.input_matrix(:anotherinput)
+      sm = BaseRecommender.new
+      sm.anotherinput.add_to_set('a', "foo")
+      sm.anotherinput.add_to_set('a', "bar")
+      sm.anotherinput.add_to_set('a', "shmoo")
+      sm.process!
+      expect(sm.similarities_for('bar')).to include('foo', 'shmoo')
+      sm.delete_pair_from_matrix!(:anotherinput, 'a', 'foo')
+      expect(sm.similarities_for('bar')).to eq(['shmoo'])
+    end
+  end
+
   describe "delete_from_matrix!" do
     it "calls delete_item on the matrix" do
       BaseRecommender.input_matrix(:anotherinput)
