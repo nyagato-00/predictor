@@ -42,9 +42,9 @@ describe Predictor::Base do
     it "should retrieve an input_matrix on a new instance and correctly overload respond_to?" do
       BaseRecommender.input_matrix(:myinput)
       sm = BaseRecommender.new
-      expect(sm.respond_to?(:process!)).to be_true
-      expect(sm.respond_to?(:myinput)).to be_true
-      expect(sm.respond_to?(:fnord)).to be_false
+      expect(sm.respond_to?(:process!)).to be_truthy
+      expect(sm.respond_to?(:myinput)).to be_truthy
+      expect(sm.respond_to?(:fnord)).to be_falsey
     end
 
     it "should retrieve an input_matrix on a new instance and intialize the correct class" do
@@ -54,11 +54,11 @@ describe Predictor::Base do
     end
 
     it "should accept a custom processing_technique, or default to Predictor's default" do
-      BaseRecommender.get_processing_technique.should == :ruby
+      expect(BaseRecommender.get_processing_technique).to eq(:ruby)
       Predictor.processing_technique :lua
-      BaseRecommender.get_processing_technique.should == :lua
+      expect(BaseRecommender.get_processing_technique).to eq(:lua)
       BaseRecommender.processing_technique :union
-      BaseRecommender.get_processing_technique.should == :union
+      expect(BaseRecommender.get_processing_technique).to eq(:union)
     end
   end
 
