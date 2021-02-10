@@ -1,6 +1,4 @@
-=======
-Predictor
-=========
+# Predictor
 
 Fast and efficient recommendations and predictions using Ruby & Redis. Developed by and used at [Pathgather](http://pathgather.com) to generate course similarities and content recommendations to users.
 
