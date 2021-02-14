@@ -2,7 +2,7 @@
 
 Fast and efficient recommendations and predictions using Ruby & Redis. Developed by and used at [Pathgather](http://pathgather.com) to generate course similarities and content recommendations to users.
 
-[![Build Status](https://travis-ci.com/nyagato-00/predictor.svg?branch=master)](https://travis-ci.com/nyagato-00/predictor)
+![Test](https://github.com/nyagato-00/predictor/workflows/Test/badge.svg?branch=master)
 
 Originally forked and based on [Recommendify](https://github.com/paulasmuth/recommendify) by Paul Asmuth, so a huge thanks to him for his contributions to Recommendify. Predictor has been almost completely rewritten to
 * Be much, much more performant and efficient by using Redis for most logic.
