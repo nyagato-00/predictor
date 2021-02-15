@@ -85,8 +85,6 @@ Retrieving Similarities and Recommendations
 ---------------------
 Now that your matrices have been initialized with several relationships, you can start generating similarities and recommendations! First, let's start with similarities, which will use the weights we specify on each matrix to determine which courses share the most in common with a given course.
 
-![Course Alternative](http://pathgather.github.io/predictor/images/course-alts.png)
-
 ```ruby
 recommender = CourseRecommender.new
 
@@ -104,8 +102,6 @@ recommender.similarities_for("course-1", exclusion_set: ["course-2"])
 ```
 
 The above examples are great for situations like "Users that viewed this also liked ...", but what if you wanted to recommend courses to a user based on the courses they've already taken? Not a problem!
-
-![Course Recommendations](http://pathgather.github.io/predictor/images/suggested.png)
 
 ```ruby
 recommender = CourseRecommender.new
