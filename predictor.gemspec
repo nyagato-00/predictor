@@ -7,7 +7,7 @@ Gem::Specification.new do |s|
   s.platform    = Gem::Platform::RUBY
   s.authors     = ["Pathgather"]
   s.email       = ["tech@pathgather.com"]
-  s.homepage    = "https://github.com/Pathgather/predictor"
+  s.homepage    = "https://github.com/nyagato-00/predictor"
   s.description = s.summary = "Fast and efficient recommendations and predictions using Redis"
   s.licenses    = ["MIT"]
 
